@@ -148,7 +148,8 @@ async function registerCuroPayment(
     orderNumber: string,
     totalCents: number,
     data: CheckoutBody,
-    paymentMethod: string
+    paymentMethod: string,
+    clientIp: string
 ): Promise<{
     payment_url: string;
     transaction_id: string;
@@ -188,6 +189,7 @@ async function registerCuroPayment(
             zipcode: data.postalCode,
             country_id: data.country,
         },
+        ip: clientIp,
     };
 
     try {
@@ -395,11 +397,17 @@ export async function POST(req: NextRequest) {
         const paymentMethod = body.paymentMethod || "ideal";
         const totalCents = Math.round(total * 100);
 
+        // Get client IP for CardGate
+        const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+            || req.headers.get("x-real-ip")
+            || "127.0.0.1";
+
         const payment = await registerCuroPayment(
             orderNumber,
             totalCents,
             body,
-            paymentMethod
+            paymentMethod,
+            clientIp
         );
 
         if (payment && 'error' in payment) {
