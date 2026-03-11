@@ -4,65 +4,99 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Container } from "@/components/ui/Container/Container";
 import { useScrollReveal } from "@/lib/animations/scroll-animations";
+import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/get-dictionary";
 import styles from "./ReviewsCarousel.module.css";
 
 type ReviewsCarouselProps = {
     dict: Dictionary;
+    locale: Locale;
 };
 
 const REVIEWS = [
     {
-        text: "Das Golden Spectrum nehme ich jetzt seit drei Monaten. Meine Gelenkschmerzen sind deutlich besser geworden. Morgens bin ich nicht mehr so steif.",
+        text: {
+            de: "Das Golden Spectrum nehme ich jetzt seit drei Monaten. Meine Gelenkschmerzen sind deutlich besser geworden. Morgens bin ich nicht mehr so steif.",
+            en: "I've been taking the Golden Spectrum for three months now. My joint pain has improved significantly. I'm no longer so stiff in the mornings.",
+            nl: "Ik gebruik het Golden Spectrum nu drie maanden. Mijn gewrichtspijn is flink verbeterd. 's Ochtends ben ik niet meer zo stijf.",
+        },
         product: "Golden Spectrum 35%",
         rating: 5,
         image: "/reviews/review-1.jpg",
         name: "Klaus M.",
     },
     {
-        text: "Hilft sehr gut. Ich nehme das CBD Gold zur Unterstützung gegen Bluthochdruck. Dadurch konnte ich die Dosis meines Medikaments reduzieren.",
+        text: {
+            de: "Hilft sehr gut. Ich nehme das CBD Gold zur Unterstützung gegen Bluthochdruck. Dadurch konnte ich die Dosis meines Medikaments reduzieren.",
+            en: "Works very well. I take the CBD Gold to help manage my blood pressure. It allowed me to reduce the dosage of my medication.",
+            nl: "Werkt heel goed. Ik gebruik de CBD Gold ter ondersteuning bij hoge bloeddruk. Daardoor kon ik de dosis van mijn medicatie verlagen.",
+        },
         product: "CBD Gold 35%",
         rating: 5,
         image: "/reviews/review-2.jpg",
         name: "Ingrid W.",
     },
     {
-        text: "Ich nehme jeden Abend vier Tropfen vom Golden Spectrum und schlafe seitdem viel besser. Kein Grübeln mehr, einfach einschlafen. Wunderbar!",
+        text: {
+            de: "Ich nehme jeden Abend vier Tropfen vom Golden Spectrum und schlafe seitdem viel besser. Kein Grübeln mehr, einfach einschlafen. Wunderbar!",
+            en: "I take four drops of the Golden Spectrum every evening and have been sleeping much better since. No more overthinking, I just fall asleep. Wonderful!",
+            nl: "Ik neem elke avond vier druppels Golden Spectrum en slaap sindsdien veel beter. Geen gepiekerd meer, gewoon in slaap vallen. Heerlijk!",
+        },
         product: "Golden Spectrum 35%",
         rating: 5,
         image: "/reviews/review-3.jpg",
         name: "Sabine K.",
     },
     {
-        text: "Seit ich das Golden Spectrum nehme, sind meine Kopfschmerzen fast weg. Hätte nie gedacht, dass CBD so gut wirkt. Bin begeistert.",
+        text: {
+            de: "Seit ich das Golden Spectrum nehme, sind meine Kopfschmerzen fast weg. Hätte nie gedacht, dass CBD so gut wirkt. Bin begeistert.",
+            en: "Since I started taking the Golden Spectrum, my headaches are nearly gone. I never thought CBD could work so well. I'm thrilled.",
+            nl: "Sinds ik het Golden Spectrum gebruik, zijn mijn hoofdpijnen bijna weg. Had nooit gedacht dat CBD zo goed zou werken. Ben enthousiast.",
+        },
         product: "Golden Spectrum 35%",
         rating: 5,
         image: "/reviews/review-4.jpg",
         name: "Petra S.",
     },
     {
-        text: "Gutes Preis-Leistungs-Verhältnis und schneller, unkomplizierter Service. Das CBD Gold ist das beste Öl, das ich bisher probiert habe.",
+        text: {
+            de: "Gutes Preis-Leistungs-Verhältnis und schneller, unkomplizierter Service. Das CBD Gold ist das beste Öl, das ich bisher probiert habe.",
+            en: "Great value for money and fast, hassle-free service. CBD Gold is the best oil I've tried so far.",
+            nl: "Goede prijs-kwaliteitverhouding en snelle, ongecompliceerde service. De CBD Gold is de beste olie die ik tot nu toe heb geprobeerd.",
+        },
         product: "CBD Gold 35%",
         rating: 5,
         image: "/reviews/review-5.jpg",
         name: "Rainer H.",
     },
     {
-        text: "Die 5,5% RAW ist perfekt für den Einstieg. Nehme täglich 3 Tropfen und merke, wie meine Verspannungen nachlassen. Sehr mild im Geschmack.",
+        text: {
+            de: "Die 5,5% RAW ist perfekt für den Einstieg. Nehme täglich 3 Tropfen und merke, wie meine Verspannungen nachlassen. Sehr mild im Geschmack.",
+            en: "The 5.5% RAW is perfect for getting started. I take 3 drops daily and notice my tension easing. Very mild taste.",
+            nl: "De 5,5% RAW is perfect om mee te beginnen. Ik neem dagelijks 3 druppels en merk dat mijn spanningen afnemen. Heel mild van smaak.",
+        },
         product: "RAW CBD 5.5%",
         rating: 5,
         image: "/reviews/review-6.jpg",
         name: "Hannelore B.",
     },
     {
-        text: "De 11% RAW helpt mij goed om mijn spierklachten onder controle te houden. 20 minuten na inname merk ik al verschil. Aanrader!",
+        text: {
+            de: "Die 11% RAW hilft mir gut, meine Muskelbeschwerden unter Kontrolle zu halten. 20 Minuten nach der Einnahme merke ich schon einen Unterschied. Empfehlenswert!",
+            en: "The 11% RAW helps me keep my muscle issues under control. I notice a difference within 20 minutes of taking it. Highly recommended!",
+            nl: "De 11% RAW helpt mij goed om mijn spierklachten onder controle te houden. 20 minuten na inname merk ik al verschil. Aanrader!",
+        },
         product: "RAW CBD 11%",
         rating: 5,
         image: "/reviews/review-7.jpg",
         name: "Jan V.",
     },
     {
-        text: "Sehr schnelle Lieferung, hervorragende Qualität. Kann das Golden Spectrum nur empfehlen. Meine Frau nimmt es jetzt auch.",
+        text: {
+            de: "Sehr schnelle Lieferung, hervorragende Qualität. Kann das Golden Spectrum nur empfehlen. Meine Frau nimmt es jetzt auch.",
+            en: "Very fast delivery, excellent quality. I can only recommend the Golden Spectrum. My wife is now taking it too.",
+            nl: "Zeer snelle levering, uitstekende kwaliteit. Kan het Golden Spectrum alleen maar aanbevelen. Mijn vrouw gebruikt het nu ook.",
+        },
         product: "Golden Spectrum 35%",
         rating: 5,
         image: "/reviews/review-8.jpg",
@@ -70,7 +104,7 @@ const REVIEWS = [
     },
 ];
 
-export function ReviewsCarousel({ dict }: ReviewsCarouselProps) {
+export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
     const [sectionRef, isVisible] = useScrollReveal<HTMLElement>();
     const [activeIndex, setActiveIndex] = useState(0);
     const trackRef = useRef<HTMLDivElement>(null);
@@ -151,15 +185,15 @@ export function ReviewsCarousel({ dict }: ReviewsCarouselProps) {
                                             <Image
                                                 src={review.image}
                                                 alt={review.name}
-                                                width={120}
-                                                height={120}
+                                                width={160}
+                                                height={160}
                                                 className={styles.cardImage}
                                             />
                                         </div>
                                         <div className={styles.cardContent}>
                                             <div className={styles.quoteIcon}>&ldquo;</div>
                                             {renderStars(review.rating)}
-                                            <p className={styles.reviewText}>{review.text}</p>
+                                            <p className={styles.reviewText}>{review.text[locale] || review.text.de}</p>
                                             <div className={styles.reviewFooter}>
                                                 <span className={styles.reviewName}>{review.name}</span>
                                                 <span className={styles.reviewProduct}>— {review.product}</span>

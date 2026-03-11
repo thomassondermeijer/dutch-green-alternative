@@ -74,8 +74,8 @@
 
 .cardImageWrap {
     flex-shrink: 0;
-    width: 100px;
-    height: 100px;
+    width: 130px;
+    height: 130px;
     border-radius: var(--radius-full);
     overflow: hidden;
     border: 3px solid var(--color-bg-alt);
@@ -220,8 +220,8 @@
     }
 
     .cardImageWrap {
-        width: 80px;
-        height: 80px;
+        width: 104px;
+        height: 104px;
     }
 
     .cardContent .stars {

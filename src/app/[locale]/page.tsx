@@ -51,7 +51,7 @@ export default async function Home({
             <FeaturedProducts products={products} locale={locale} dict={dict} />
             <EducationSection dict={dict} />
             <TrustSignals dict={dict} />
-            <ReviewsCarousel dict={dict} />
+            <ReviewsCarousel dict={dict} locale={locale} />
             <BlogPreview locale={locale} dict={dict} />
             <WhatsAppButton dict={dict} />
         </>
