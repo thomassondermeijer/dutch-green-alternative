@@ -152,11 +152,11 @@ export function Header({ locale, dict }: HeaderProps) {
                                 ))}
                                 <div className={styles.megaPromo}>
                                     <div className={styles.megaPromoContent}>
-                                        <span className={styles.megaPromoLabel}>✨ Bestseller</span>
+                                        <span className={styles.megaPromoLabel}>{dict.nav.bestseller}</span>
                                         <h4 className={styles.megaPromoTitle}>Golden Spectrum 35%</h4>
-                                        <p className={styles.megaPromoDesc}>CBD + CBG + CBN — Der ultimative Entourage-Effekt</p>
+                                        <p className={styles.megaPromoDesc}>{dict.nav.promoDesc}</p>
                                         <Link href={`/${locale}/shop/golden-spectrum-35`} className={styles.megaPromoCta}>
-                                            Jetzt entdecken →
+                                            {dict.nav.promoCta}
                                         </Link>
                                     </div>
                                 </div>

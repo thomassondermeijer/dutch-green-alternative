@@ -12,7 +12,10 @@
         "cart": "Cart",
         "login": "Log In",
         "register": "Register",
-        "logout": "Log Out"
+        "logout": "Log Out",
+        "bestseller": "✨ Bestseller",
+        "promoDesc": "CBD + CBG + CBN — The ultimate Entourage Effect",
+        "promoCta": "Discover now →"
     },
     "home": {
         "heroTitle": "Natural CBD & CBG Oils",

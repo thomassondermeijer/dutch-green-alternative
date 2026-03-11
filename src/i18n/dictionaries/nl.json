@@ -12,7 +12,10 @@
         "cart": "Winkelwagen",
         "login": "Inloggen",
         "register": "Registreren",
-        "logout": "Uitloggen"
+        "logout": "Uitloggen",
+        "bestseller": "✨ Bestseller",
+        "promoDesc": "CBD + CBG + CBN — Het ultieme Entourage Effect",
+        "promoCta": "Ontdek nu →"
     },
     "home": {
         "heroTitle": "Natuurlijke CBD & CBG Oliën",
