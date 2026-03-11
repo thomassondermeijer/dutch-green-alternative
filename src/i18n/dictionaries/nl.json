@@ -163,10 +163,15 @@
     },
     "blog": {
         "title": "Blog",
+        "subtitle": "Leer alles over CBD olie, cannabinoïden en hoe onze producten uw gezondheid kunnen ondersteunen.",
         "readMore": "Lees meer",
         "publishedOn": "Gepubliceerd op",
         "tags": "Tags",
-        "noPosts": "Geen artikelen gevonden"
+        "noPosts": "Geen artikelen gevonden",
+        "readingTime": "min leestijd",
+        "backToBlog": "Terug naar Blog",
+        "allTags": "Alle",
+        "filterByTag": "Filter op tag"
     },
     "about": {
         "title": "Over ons",

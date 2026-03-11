@@ -163,10 +163,15 @@
     },
     "blog": {
         "title": "Blog",
+        "subtitle": "Erfahren Sie alles über CBD Öl, Cannabinoide und wie unsere Produkte Ihre Gesundheit unterstützen können.",
         "readMore": "Weiterlesen",
         "publishedOn": "Veröffentlicht am",
         "tags": "Schlagwörter",
-        "noPosts": "Keine Artikel vorhanden"
+        "noPosts": "Keine Artikel vorhanden",
+        "readingTime": "Min. Lesezeit",
+        "backToBlog": "Zurück zum Blog",
+        "allTags": "Alle",
+        "filterByTag": "Nach Schlagwort filtern"
     },
     "about": {
         "title": "Über uns",

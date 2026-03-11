@@ -163,10 +163,15 @@
     },
     "blog": {
         "title": "Blog",
+        "subtitle": "Learn everything about CBD oil, cannabinoids, and how our products can support your health.",
         "readMore": "Read More",
         "publishedOn": "Published on",
         "tags": "Tags",
-        "noPosts": "No articles found"
+        "noPosts": "No articles found",
+        "readingTime": "min read",
+        "backToBlog": "Back to Blog",
+        "allTags": "All",
+        "filterByTag": "Filter by tag"
     },
     "about": {
         "title": "About Us",
