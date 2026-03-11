@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { Container } from "@/components/ui/Container/Container";
 import { useScrollReveal } from "@/lib/animations/scroll-animations";
 import type { Dictionary } from "@/i18n/get-dictionary";
@@ -15,41 +16,57 @@ const REVIEWS = [
         text: "Hilft sehr gut. Ich nehme es zur Unterstützung gegen Bluthochdruck. Dadurch konnte ich die Dosis meines Medikaments reduzieren.",
         product: "CBD Gold 35%",
         rating: 5,
+        image: "/reviews/review-1.jpg",
+        name: "Klaus M.",
     },
     {
         text: "Ich nehme jeden Morgen vier Tropfen des Öls, und ich muss sagen, ich habe keine Probleme mehr mit meinem Schlaf. Top!",
         product: "Body Harmony",
         rating: 5,
+        image: "/reviews/review-2.jpg",
+        name: "Ingrid W.",
     },
     {
         text: "Gefällt mir, es geht mir dadurch viel besser. Nach 7 Tagen eine deutliche Verbesserung meines Stoffwechsels.",
         product: "Natürliche Verteidigung",
         rating: 5,
+        image: "/reviews/review-3.jpg",
+        name: "Sabine K.",
     },
     {
         text: "Gutes Preis/Leistungs Verhältnis und schneller unkomplizierter Service. Das beste CBD Öl.",
         product: "CBD Gold 35%",
         rating: 5,
+        image: "/reviews/review-4.jpg",
+        name: "Petra S.",
     },
     {
         text: "Body Harmony habe ich immer vorrätig. Das Öl entspannt mich bei Bauchschmerzen sehr und lässt sie meistens verschwinden.",
         product: "Body Harmony",
         rating: 5,
+        image: "/reviews/review-5.jpg",
+        name: "Rainer H.",
     },
     {
         text: "De 12% raw helpt mij goed om mijn spierziekte onder controle te houden. 20 minuten na inname merk ik al verschil.",
         product: "CBG RAW 12%",
         rating: 5,
+        image: "/reviews/review-6.jpg",
+        name: "Hannelore B.",
     },
     {
         text: "Erhöht die Schlafqualität! Kürzere Einschlafzeit!",
         product: "Good Night",
         rating: 5,
+        image: "/reviews/review-7.jpg",
+        name: "Jan V.",
     },
     {
         text: "Sehr schnelle Lieferung, hervorragende Qualität. Kann das CBD Öl nur empfehlen.",
         product: "Golden Spectrum 35%",
         rating: 5,
+        image: "/reviews/review-8.jpg",
+        name: "Wolfgang D.",
     },
 ];
 
@@ -129,10 +146,26 @@ export function ReviewsCarousel({ dict }: ReviewsCarouselProps) {
                                         zIndex: isActive ? 2 : 1,
                                     }}
                                 >
-                                    <div className={styles.quoteIcon}>"</div>
-                                    {renderStars(review.rating)}
-                                    <p className={styles.reviewText}>{review.text}</p>
-                                    <span className={styles.reviewProduct}>— {review.product}</span>
+                                    <div className={styles.cardInner}>
+                                        <div className={styles.cardImageWrap}>
+                                            <Image
+                                                src={review.image}
+                                                alt={review.name}
+                                                width={120}
+                                                height={120}
+                                                className={styles.cardImage}
+                                            />
+                                        </div>
+                                        <div className={styles.cardContent}>
+                                            <div className={styles.quoteIcon}>&ldquo;</div>
+                                            {renderStars(review.rating)}
+                                            <p className={styles.reviewText}>{review.text}</p>
+                                            <div className={styles.reviewFooter}>
+                                                <span className={styles.reviewName}>{review.name}</span>
+                                                <span className={styles.reviewProduct}>— {review.product}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
