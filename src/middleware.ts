@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { i18n, type Locale } from '@/i18n/config';
+import { createServerClient } from '@supabase/ssr';
 
 function getLocaleFromHeaders(request: NextRequest): Locale {
     // 1. Check cookie for saved preference
@@ -43,11 +44,60 @@ function getLocaleFromPathname(pathname: string): Locale | null {
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
+    // --- Admin route protection ---
+    if (pathname.startsWith('/admin')) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+            return NextResponse.redirect(new URL('/de/account/login', request.url));
+        }
+
+        // Create Supabase client to check auth
+        let response = NextResponse.next({ request });
+        const supabase = createServerClient(supabaseUrl, supabaseKey, {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value }) =>
+                        request.cookies.set(name, value)
+                    );
+                    response = NextResponse.next({ request });
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
+                },
+            },
+        });
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            // Not logged in → redirect to login
+            return NextResponse.redirect(new URL('/de/account/login?redirect=/admin', request.url));
+        }
+
+        // Check if user is admin
+        const { data: adminUser } = await supabase
+            .from('admin_users')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+
+        if (!adminUser) {
+            // Logged in but not admin → redirect to homepage
+            return NextResponse.redirect(new URL('/de', request.url));
+        }
+
+        return response;
+    }
+
     // Skip locale handling for static files and API routes
     const isStaticOrApi =
         pathname.startsWith('/_next') ||
         pathname.startsWith('/api') ||
-        pathname.startsWith('/admin') ||
         pathname.includes('.') ||
         pathname.startsWith('/favicon');
 
