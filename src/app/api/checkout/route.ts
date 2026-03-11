@@ -152,7 +152,7 @@ async function registerCuroPayment(
 ): Promise<{
     payment_url: string;
     transaction_id: string;
-} | null> {
+} | { error: string } | null> {
     const merchantId = process.env.CARDGATE_MERCHANT_ID;
     const apiSecret = process.env.CARDGATE_API_SECRET;
     const siteId = process.env.CARDGATE_SITE_ID;
@@ -160,7 +160,7 @@ async function registerCuroPayment(
 
     if (!merchantId || !apiSecret || !siteId) {
         console.error("CardGate credentials not configured");
-        return null;
+        return { error: "Payment gateway not configured" };
     }
 
     const baseUrl = "https://secure.curopayments.net/rest/v1/curo";
@@ -203,10 +203,11 @@ async function registerCuroPayment(
         if (!res.ok) {
             const errorText = await res.text();
             console.error(`CURO payment registration failed (${res.status}):`, errorText);
-            return null;
+            return { error: `Payment gateway error (${res.status}): ${errorText}` };
         }
 
         const result = await res.json();
+        console.log("CURO response:", JSON.stringify(result));
 
         return {
             payment_url: result.payment?.url || result.url || "",
@@ -214,7 +215,7 @@ async function registerCuroPayment(
         };
     } catch (err) {
         console.error("CURO API error:", err);
-        return null;
+        return { error: `Payment gateway connection failed: ${err}` };
     }
 }
 
@@ -401,6 +402,17 @@ export async function POST(req: NextRequest) {
             paymentMethod
         );
 
+        if (payment && 'error' in payment) {
+            console.error("Payment registration failed:", payment.error);
+            return new Response(
+                JSON.stringify({
+                    error: `Payment failed: ${payment.error}`,
+                    order_number: orderNumber,
+                }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
         if (payment && payment.payment_url) {
             // Save transaction ID on order
             await supabaseQuery(`orders?id=eq.${orderId}`, {
@@ -420,15 +432,13 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // If payment gateway unavailable, still return order (can pay later)
+        // If no payment URL returned but no error either
         return new Response(
             JSON.stringify({
-                success: true,
+                error: "Payment gateway returned no payment URL. Please try again or choose a different payment method.",
                 order_number: orderNumber,
-                payment_url: null,
-                message: "Order created. Payment gateway unavailable — order saved for manual processing.",
             }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
+            { status: 400, headers: { "Content-Type": "application/json" } }
         );
     } catch (err) {
         console.error("Checkout error:", err);
