@@ -155,7 +155,7 @@
 /* ═══ Responsive ═══ */
 @media (max-width: 768px) {
     .section {
-        padding: var(--space-3xl) 0;
+        padding: var(--space-2xl) 0;
     }
 
     .carouselWrapper {
@@ -163,11 +163,12 @@
     }
 
     .track {
-        height: 300px;
+        height: auto;
+        min-height: 260px;
     }
 
     .card {
-        max-width: 90%;
+        max-width: 92%;
         padding: var(--space-lg);
     }
 
@@ -181,5 +182,9 @@
 
     .sectionTitle {
         font-size: var(--font-size-2xl);
+    }
+
+    .quoteIcon {
+        font-size: 2.5rem;
     }
 }

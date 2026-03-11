@@ -153,9 +153,43 @@
 /* ── Responsive ── */
 @media (max-width: 1024px) {
     .grid {
-        grid-template-columns: 1fr;
-        max-width: 480px;
-        margin: 0 auto;
+        grid-template-columns: repeat(2, 1fr);
         gap: var(--space-lg);
+    }
+}
+
+@media (max-width: 768px) {
+    .section {
+        padding: var(--space-2xl) 0 var(--space-3xl);
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-2xl);
+    }
+
+    .sectionSubtitle {
+        font-size: var(--font-size-base);
+    }
+
+    .sectionHeader {
+        margin-bottom: var(--space-xl);
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .card {
+        padding: var(--space-lg);
+    }
+
+    .cardIcon {
+        width: 52px;
+        height: 52px;
+    }
+
+    .cardTitle {
+        font-size: var(--font-size-lg);
     }
 }

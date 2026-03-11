@@ -64,8 +64,28 @@
     }
 }
 
+@media (max-width: 768px) {
+    .section {
+        padding: var(--space-2xl) 0;
+    }
+
+    .sectionHeader {
+        margin-bottom: var(--space-xl);
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-2xl);
+    }
+
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-md);
+    }
+}
+
 @media (max-width: 480px) {
     .grid {
         grid-template-columns: 1fr;
+        gap: var(--space-md);
     }
 }

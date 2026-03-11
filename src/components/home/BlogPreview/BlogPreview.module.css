@@ -116,7 +116,28 @@
 }
 
 @media (max-width: 768px) {
+    .section {
+        padding: var(--space-2xl) 0;
+    }
+
+    .sectionHeader {
+        margin-bottom: var(--space-xl);
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-2xl);
+    }
+
     .grid {
         grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .cardBody {
+        padding: var(--space-md);
+    }
+
+    .cardTitle {
+        font-size: var(--font-size-base);
     }
 }

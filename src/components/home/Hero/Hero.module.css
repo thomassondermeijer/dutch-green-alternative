@@ -142,14 +142,46 @@
 
 @media (max-width: 768px) {
     .hero {
-        min-height: 80vh;
+        min-height: 70vh;
     }
 
     .heroContent {
-        padding: var(--space-3xl) 0;
+        padding: var(--space-2xl) 0;
+        max-width: 100%;
+    }
+
+    .heroDescription {
+        font-size: var(--font-size-base);
+        max-width: 100%;
+        margin-bottom: var(--space-xl);
+    }
+
+    .heroSubtitle {
+        font-size: var(--font-size-xs);
+        margin-bottom: var(--space-md);
     }
 
     .heroCtas {
         flex-direction: column;
+    }
+
+    .scrollIndicator {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero {
+        min-height: 65vh;
+    }
+
+    .heroContent {
+        padding: var(--space-xl) 0;
+    }
+
+    .heroCtas a,
+    .heroCtas button {
+        width: 100%;
+        text-align: center;
     }
 }
