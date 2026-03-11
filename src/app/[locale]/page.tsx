@@ -35,6 +35,32 @@ async function getProducts() {
     return [];
 }
 
+async function getLatestBlogPosts() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) return [];
+
+    try {
+        const res = await fetch(
+            `${supabaseUrl}/rest/v1/blog_posts?is_published=eq.true&order=published_at.desc&limit=3&select=slug,featured_image,tags,translations`,
+            {
+                headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                },
+                next: { revalidate: 600 },
+            }
+        );
+        if (res.ok) {
+            return await res.json();
+        }
+    } catch {
+        // fallback
+    }
+    return [];
+}
+
 export default async function Home({
     params,
 }: {
@@ -43,7 +69,7 @@ export default async function Home({
     const { locale: rawLocale } = await params;
     const locale = (i18n.locales.includes(rawLocale as Locale) ? rawLocale : i18n.defaultLocale) as Locale;
     const dict = await getDictionary(locale);
-    const products = await getProducts();
+    const [products, blogPosts] = await Promise.all([getProducts(), getLatestBlogPosts()]);
 
     return (
         <>
@@ -52,7 +78,7 @@ export default async function Home({
             <EducationSection dict={dict} />
             <TrustSignals dict={dict} />
             <ReviewsCarousel dict={dict} locale={locale} />
-            <BlogPreview locale={locale} dict={dict} />
+            <BlogPreview locale={locale} dict={dict} posts={blogPosts} />
             <WhatsAppButton dict={dict} />
         </>
     );
