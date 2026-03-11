@@ -1,0 +1,170 @@
+.section {
+    padding: var(--space-4xl) 0;
+    background: var(--color-white);
+    position: relative;
+}
+
+.section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+}
+
+.sectionHeader {
+    text-align: center;
+    margin-bottom: var(--space-3xl);
+}
+
+.sectionTitle {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-3xl);
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
+}
+
+.sectionSubtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-light);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* ═══ Steps Grid ═══ */
+.steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3xl);
+    position: relative;
+}
+
+.step {
+    text-align: center;
+    position: relative;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ═══ Icon ═══ */
+.iconWrapper {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto var(--space-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--color-border-light);
+    position: relative;
+    z-index: 2;
+    transition: all 0.4s ease;
+}
+
+.step:hover .iconWrapper {
+    border-color: var(--color-primary);
+    transform: scale(1.05);
+    box-shadow: 0 8px 32px rgba(45, 90, 61, 0.12);
+}
+
+.iconWrapper::after {
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-full);
+    border: 1px dashed var(--color-border-light);
+    animation: pulseRing 3s ease-in-out infinite;
+}
+
+@keyframes pulseRing {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.08);
+        opacity: 0.1;
+    }
+}
+
+/* ═══ Connector line between steps ═══ */
+.connector {
+    position: absolute;
+    top: 50px;
+    left: calc(50% + 62px);
+    width: calc(100% + var(--space-3xl) - 124px);
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+}
+
+.connectorVisible {
+    opacity: 0.3;
+    transform: scaleX(1);
+}
+
+/* ═══ Text ═══ */
+.stepTitle {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
+}
+
+.stepDesc {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 768px) {
+    .steps {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    .connector {
+        display: none;
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-2xl);
+    }
+
+    .iconWrapper {
+        width: 80px;
+        height: 80px;
+    }
+
+    .iconWrapper svg {
+        width: 40px;
+        height: 40px;
+    }
+
+    .iconWrapper::after {
+        width: 100px;
+        height: 100px;
+    }
+}

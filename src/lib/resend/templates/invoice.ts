@@ -1,0 +1,225 @@
+type OrderItem = {
+  name: string;
+  quantity: number;
+  price: number;
+};
+
+type InvoiceData = {
+  orderNumber: string;
+  customerName: string;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  discount?: number;
+  invoiceSurcharge: number;
+  total: number;
+  shippingAddress: string;
+  billingAddress?: string;
+  paymentDueDate: string; // formatted date string
+  locale: string;
+};
+
+const labels: Record<string, Record<string, string>> = {
+  de: {
+    title: "Rechnung",
+    greeting: "Vielen Dank für Ihre Bestellung",
+    orderNumber: "Rechnungsnummer",
+    items: "Bestellte Produkte",
+    product: "Produkt",
+    qty: "Menge",
+    price: "Preis",
+    subtotal: "Zwischensumme",
+    shipping: "Versand",
+    discount: "Rabatt",
+    invoiceSurcharge: "Rechnungsgebühr",
+    total: "Gesamtbetrag",
+    shippingTo: "Lieferadresse",
+    paymentInfo: "Zahlungsinformationen",
+    pleaseTransfer: "Bitte überweisen Sie den Gesamtbetrag bis zum",
+    toAccount: "auf folgendes Konto",
+    accountHolder: "Kontoinhaber",
+    reference: "Verwendungszweck",
+    dueDate: "Fälligkeitsdatum",
+    importantNote: "Bitte geben Sie die Rechnungsnummer als Verwendungszweck an, damit wir Ihre Zahlung zuordnen können.",
+    footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
+  },
+  nl: {
+    title: "Factuur",
+    greeting: "Bedankt voor uw bestelling",
+    orderNumber: "Factuurnummer",
+    items: "Bestelde producten",
+    product: "Product",
+    qty: "Aantal",
+    price: "Prijs",
+    subtotal: "Subtotaal",
+    shipping: "Verzending",
+    discount: "Korting",
+    invoiceSurcharge: "Factuurkosten",
+    total: "Totaalbedrag",
+    shippingTo: "Bezorgadres",
+    paymentInfo: "Betalingsgegevens",
+    pleaseTransfer: "Gelieve het totaalbedrag over te maken vóór",
+    toAccount: "naar het volgende rekeningnummer",
+    accountHolder: "Rekeninghouder",
+    reference: "Betalingskenmerk",
+    dueDate: "Vervaldatum",
+    importantNote: "Vermeld het factuurnummer als betalingskenmerk zodat wij uw betaling kunnen verwerken.",
+    footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
+  },
+  en: {
+    title: "Invoice",
+    greeting: "Thank you for your order",
+    orderNumber: "Invoice Number",
+    items: "Ordered Products",
+    product: "Product",
+    qty: "Qty",
+    price: "Price",
+    subtotal: "Subtotal",
+    shipping: "Shipping",
+    discount: "Discount",
+    invoiceSurcharge: "Invoice fee",
+    total: "Total Amount Due",
+    shippingTo: "Shipping Address",
+    paymentInfo: "Payment Information",
+    pleaseTransfer: "Please transfer the total amount by",
+    toAccount: "to the following bank account",
+    accountHolder: "Account Holder",
+    reference: "Payment Reference",
+    dueDate: "Due Date",
+    importantNote: "Please include the invoice number as payment reference so we can match your payment.",
+    footer: "For questions, contact us at info@dutchgreenalternative.nl",
+  },
+};
+
+export function buildInvoiceEmail(data: InvoiceData): string {
+  const t = labels[data.locale] || labels.de;
+
+  const itemRows = data.items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">€${(item.price * item.quantity).toFixed(2)}</td>
+        </tr>`
+    )
+    .join("");
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <tr>
+          <td style="background-color: #2d5a3d; background: linear-gradient(135deg, #2d5a3d, #4a7c59); padding: 30px 40px; text-align: center;">
+            <img src="https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto; margin-bottom: 8px;" />
+            <p style="margin: 8px 0 0; color: rgba(255,255,255,0.85); font-size: 14px; font-family: 'Outfit', sans-serif;">${t.title}</p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding: 40px;">
+            <h2 style="margin: 0 0 8px; color: #1a1a1a; font-size: 22px; font-family: 'Outfit', sans-serif;">${t.greeting}, ${data.customerName}!</h2>
+            <p style="color: #6b7280; margin: 0 0 24px;">${t.orderNumber}: <strong style="color: #2d5a3d;">${data.orderNumber}</strong></p>
+
+            <!-- Items Table -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+              <tr style="background-color: #f9fafb;">
+                <th style="padding: 12px; text-align: left; font-size: 14px; color: #6b7280;">${t.product}</th>
+                <th style="padding: 12px; text-align: center; font-size: 14px; color: #6b7280;">${t.qty}</th>
+                <th style="padding: 12px; text-align: right; font-size: 14px; color: #6b7280;">${t.price}</th>
+              </tr>
+              ${itemRows}
+            </table>
+
+            <!-- Totals -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280;">${t.subtotal}</td>
+                <td style="padding: 6px 0; text-align: right;">€${data.subtotal.toFixed(2)}</td>
+              </tr>
+              ${data.discount ? `<tr>
+                <td style="padding: 6px 0; color: #16a34a;">${t.discount}</td>
+                <td style="padding: 6px 0; text-align: right; color: #16a34a;">-€${data.discount.toFixed(2)}</td>
+              </tr>` : ""}
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280;">${t.shipping}</td>
+                <td style="padding: 6px 0; text-align: right;">${data.shipping === 0 ? "✓ Free" : `€${data.shipping.toFixed(2)}`}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280;">${t.invoiceSurcharge}</td>
+                <td style="padding: 6px 0; text-align: right;">€${data.invoiceSurcharge.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0 0; font-size: 20px; font-weight: bold; border-top: 2px solid #e5e7eb;">${t.total}</td>
+                <td style="padding: 12px 0 0; text-align: right; font-size: 20px; font-weight: bold; border-top: 2px solid #e5e7eb; color: #2d5a3d;">€${data.total.toFixed(2)}</td>
+              </tr>
+            </table>
+
+            <!-- Payment Info Box -->
+            <div style="background-color: #eff6ff; border: 2px solid #bfdbfe; border-radius: 10px; padding: 24px; margin-bottom: 24px;">
+              <h3 style="margin: 0 0 16px; color: #1e40af; font-size: 16px; font-family: 'Outfit', sans-serif;">🏦 ${t.paymentInfo}</h3>
+              <p style="margin: 0 0 12px; color: #374151;">${t.pleaseTransfer} <strong>${data.paymentDueDate}</strong> ${t.toAccount}:</p>
+              <table cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="padding: 6px 0; color: #6b7280; width: 140px;">${t.accountHolder}:</td>
+                  <td style="padding: 6px 0; font-weight: 600;">GreenResults | Dutch Green Alternative</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #6b7280;">IBAN:</td>
+                  <td style="padding: 6px 0; font-weight: 600; font-family: monospace; font-size: 15px;">BE63 9674 8610 0308</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #6b7280;">BIC:</td>
+                  <td style="padding: 6px 0; font-weight: 600; font-family: monospace;">TRWIBEB1</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #6b7280;">${t.reference}:</td>
+                  <td style="padding: 6px 0; font-weight: 600; color: #2d5a3d; font-size: 15px;">${data.orderNumber}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #6b7280;">${t.dueDate}:</td>
+                  <td style="padding: 6px 0; font-weight: 600;">${data.paymentDueDate}</td>
+                </tr>
+              </table>
+              <p style="margin: 16px 0 0; padding: 12px; background-color: #fefce8; border-radius: 6px; color: #854d0e; font-size: 13px;">
+                ⚠️ ${t.importantNote}
+              </p>
+            </div>
+
+            <!-- Shipping Address -->
+            <div style="background-color: #f0fdf4; border-radius: 8px; padding: 16px;">
+              <p style="margin: 0 0 8px; font-weight: 600; color: #1a1a1a;">📦 ${t.shippingTo}</p>
+              <p style="margin: 0; color: #6b7280; white-space: pre-line;">${data.shippingAddress}</p>
+            </div>
+          </td>
+        </tr>
+        <!-- Company Details -->
+        <tr>
+          <td style="padding: 0 40px 24px;">
+            <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.6;">
+              GreenResults | Dutch Green Alternative · Tornimäe 3 · 10145 Tallinn · Handelsregisternummer: 16624464
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background-color: #f9fafb; padding: 24px 40px; text-align: center;">
+            <p style="margin: 0; color: #9ca3af; font-size: 13px;">${t.footer}</p>
+            <p style="margin: 8px 0 0; color: #9ca3af; font-size: 12px;">© ${new Date().getFullYear()} Dutch Green Alternative</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}

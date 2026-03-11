@@ -1,18 +1,18 @@
 | # | Task | Status |
 |---|---|---|
-| 1 | Project Scaffolding & Configuration | in_progress |
-| 2 | Database Schema & Supabase Setup | not_started |
-| 3 | Internationalization (i18n) Setup | not_started |
-| 4 | Design System & Global Styles | not_started |
-| 5 | Home Page | not_started |
-| 6 | Shop & Product Detail Pages | not_started |
-| 7 | Shopping Cart | not_started |
-| 8 | Checkout & Curo Payments Integration | not_started |
+| 1 | Project Scaffolding & Configuration | done |
+| 2 | Database Schema & Supabase Setup | done |
+| 3 | Internationalization (i18n) Setup | done |
+| 4 | Design System & Global Styles | done |
+| 5 | Home Page | done |
+| 6 | Shop & Product Detail Pages | done |
+| 7 | Shopping Cart | done |
+| 8 | Checkout & CardGate Payments Integration | partial (UI done, CardGate blocked) |
 | 9 | Acut Fulfilment Integration | not_started |
-| 10 | Email System (Resend) | not_started |
-| 11 | Customer Accounts | not_started |
-| 12 | Content Pages | not_started |
-| 13 | Coupon System | not_started |
-| 14 | SEO & Performance Optimization | not_started |
-| 15 | Admin Basics & Product Management | not_started |
+| 10 | Email System (Resend) | done |
+| 11 | Customer Accounts | done |
+| 12 | Content Pages | done |
+| 13 | Coupon System | done |
+| 14 | SEO & Performance Optimization | done |
+| 15 | Admin Basics & Product Management | done |
 | 16 | Data Migration & Go-Live Prep | not_started |

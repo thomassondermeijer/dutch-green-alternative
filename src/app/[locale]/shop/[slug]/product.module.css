@@ -1,0 +1,475 @@
+.page {
+    padding: var(--space-3xl) 0 var(--space-4xl);
+}
+
+/* Product Layout */
+.productLayout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: start;
+}
+
+/* --- Image Gallery --- */
+.gallery {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-xl));
+}
+
+.mainImage {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background-color: var(--color-bg-alt);
+    margin-bottom: var(--space-md);
+    cursor: zoom-in;
+}
+
+.mainImage img {
+    transition: transform var(--transition-slow);
+}
+
+.mainImage:hover img {
+    transform: scale(1.15);
+}
+
+.thumbnails {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.thumb {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+    background-color: var(--color-bg-alt);
+    position: relative;
+}
+
+.thumb:hover {
+    border-color: var(--color-border);
+}
+
+.thumbActive {
+    border-color: var(--color-primary);
+}
+
+/* --- Product Info --- */
+.info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.breadcrumb a:hover {
+    color: var(--color-primary);
+}
+
+.categoryBadge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--radius-full);
+    align-self: flex-start;
+}
+
+.categoryRaw {
+    background-color: rgba(45, 90, 61, 0.1);
+    color: var(--color-primary);
+}
+
+.categoryPure {
+    background-color: rgba(196, 162, 101, 0.1);
+    color: var(--color-secondary-dark);
+}
+
+.productName {
+    font-size: var(--font-size-3xl);
+    line-height: var(--line-height-tight);
+}
+
+.price {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+}
+
+.shortDesc {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+}
+
+/* ── Specs Grid ── */
+.specsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background: var(--color-bg-alt);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+}
+
+.specItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+}
+
+.specIcon {
+    font-size: 1.25rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.specItem>div {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.specLabel {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.specValue {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.inStock {
+    color: var(--color-success);
+}
+
+.outOfStock {
+    color: var(--color-error, #dc3545);
+}
+
+/* Quantity + Add to Cart */
+.purchaseRow {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+}
+
+.quantityControl {
+    display: flex;
+    align-items: center;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.qtyBtn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: transparent;
+    font-size: var(--font-size-xl);
+    cursor: pointer;
+    color: var(--color-text);
+    transition: background-color var(--transition-fast);
+    font-family: var(--font-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qtyBtn:hover {
+    background-color: var(--color-bg-alt);
+}
+
+.qtyValue {
+    width: 48px;
+    text-align: center;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    border-left: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    height: 44px;
+    line-height: 44px;
+}
+
+.addToCartBtn {
+    flex: 1;
+}
+
+/* ── Trust Badges ── */
+.trustBadges {
+    display: flex;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--color-border-light);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.trustBadge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.trustBadge svg {
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+/* ──────────────────────────────────
+   Section 2: Full-width description
+   ────────────────────────────────── */
+.descriptionSection {
+    margin-top: var(--space-4xl);
+    padding-top: var(--space-3xl);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.sectionTitle {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--space-xl);
+    color: var(--color-text);
+}
+
+.descriptionContent {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    color: var(--color-text-light);
+    max-width: 800px;
+}
+
+/* ──────────────────────────────────
+   Section 3: Dosage + Ingredients
+   ────────────────────────────────── */
+.dosageSection {
+    margin-top: var(--space-3xl);
+    padding-top: var(--space-3xl);
+    border-top: 1px solid var(--color-border-light);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: start;
+}
+
+.sectionSubtitle {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-lg);
+    color: var(--color-text);
+}
+
+.stepsList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.stepItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    font-size: var(--font-size-base);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+}
+
+.stepNumber {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ingredientsBox {
+    padding: var(--space-xl);
+    background: var(--color-bg-alt);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+}
+
+.ingredientsText {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+}
+
+/* ──────────────────────────────────
+   Section 4: FAQ Accordion
+   ────────────────────────────────── */
+.faqSection {
+    margin-top: var(--space-3xl);
+    padding-top: var(--space-3xl);
+    border-top: 1px solid var(--color-border-light);
+    max-width: 800px;
+}
+
+.faqList {
+    display: flex;
+    flex-direction: column;
+}
+
+.faqItem {
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.faqQuestion {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-lg) 0;
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    cursor: pointer;
+    text-align: left;
+    gap: var(--space-md);
+    transition: color var(--transition-fast);
+}
+
+.faqQuestion:hover {
+    color: var(--color-primary);
+}
+
+.faqChevron {
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    color: var(--color-text-muted);
+}
+
+.faqOpen .faqChevron {
+    transform: rotate(180deg);
+}
+
+.faqAnswer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, padding 0.35s ease;
+}
+
+.faqOpen .faqAnswer {
+    max-height: 400px;
+    padding-bottom: var(--space-lg);
+}
+
+.faqAnswer p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+}
+
+/* Related Products */
+.relatedSection {
+    margin-top: var(--space-4xl);
+    border-top: 1px solid var(--color-border-light);
+    padding-top: var(--space-3xl);
+}
+
+.relatedTitle {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+}
+
+.relatedGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-xl);
+}
+
+/* Placeholder image */
+.placeholderImage {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--color-bg-alt), var(--color-accent-light));
+    font-size: 5rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .productLayout {
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    .gallery {
+        position: static;
+    }
+
+    .purchaseRow {
+        flex-direction: column;
+    }
+
+    .quantityControl {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .specsGrid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .trustBadges {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .dosageSection {
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    .relatedGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

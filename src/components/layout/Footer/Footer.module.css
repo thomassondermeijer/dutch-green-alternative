@@ -1,0 +1,179 @@
+.footer {
+    background-color: var(--color-primary-dark);
+    color: var(--color-text-inverse);
+    padding: var(--space-4xl) 0 var(--space-xl);
+    margin-top: var(--space-4xl);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: var(--space-3xl);
+    margin-bottom: var(--space-3xl);
+}
+
+/* --- Company Info --- */
+.brand {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.brandName {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white);
+}
+
+.brandAccent {
+    color: var(--color-secondary);
+}
+
+.tagline {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    max-width: 320px;
+}
+
+/* --- Trust Badges --- */
+.trustBadges {
+    display: flex;
+    gap: var(--space-lg);
+    margin-top: var(--space-md);
+}
+
+.trustBadge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.trustIcon {
+    width: 20px;
+    height: 20px;
+    color: var(--color-secondary);
+}
+
+/* --- Footer Sections --- */
+.sectionTitle {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white);
+    margin-bottom: var(--space-lg);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sectionLinks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.sectionLink {
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+    font-size: var(--font-size-base);
+    transition: color var(--transition-fast);
+    padding: var(--space-xs) 0;
+}
+
+.sectionLink:hover {
+    color: var(--color-secondary);
+}
+
+/* --- Bottom Bar --- */
+.bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-xl);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.copyright {
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.bottomLinks {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.bottomLink {
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.bottomLink:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* --- Language Selector (Footer) --- */
+.langSelector {
+    display: flex;
+    gap: 2px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    padding: 2px;
+}
+
+.langBtn {
+    padding: 0.375rem 0.625rem;
+    font-size: var(--font-size-sm);
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-transform: uppercase;
+    font-family: var(--font-body);
+    font-weight: var(--font-weight-medium);
+    text-decoration: none;
+}
+
+.langBtn:hover {
+    color: var(--color-white);
+}
+
+.langBtnActive {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--color-white);
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .footer {
+        padding: var(--space-3xl) 0 var(--space-lg);
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    .trustBadges {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .bottom {
+        flex-direction: column;
+        gap: var(--space-md);
+        text-align: center;
+    }
+
+    .bottomLinks {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}

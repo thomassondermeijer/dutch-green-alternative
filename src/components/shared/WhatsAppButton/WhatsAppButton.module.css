@@ -1,0 +1,71 @@
+.whatsapp {
+    position: fixed;
+    bottom: var(--space-xl);
+    right: var(--space-xl);
+    z-index: 90;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    background-color: #25D366;
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all var(--transition-base);
+    animation: whatsappPulse 3s ease infinite;
+}
+
+.whatsapp:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(37, 211, 102, 0.5);
+}
+
+.tooltip {
+    position: absolute;
+    right: 68px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--color-white);
+    color: var(--color-text);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+.whatsapp:hover .tooltip {
+    opacity: 1;
+}
+
+@keyframes whatsappPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 24px rgba(37, 211, 102, 0.6);
+    }
+}
+
+@media (max-width: 768px) {
+    .whatsapp {
+        bottom: var(--space-lg);
+        right: var(--space-lg);
+        width: 52px;
+        height: 52px;
+    }
+
+    .tooltip {
+        display: none;
+    }
+}

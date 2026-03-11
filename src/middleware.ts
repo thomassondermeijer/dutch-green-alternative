@@ -1,7 +1,75 @@
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { i18n, type Locale } from '@/i18n/config';
+
+function getLocaleFromHeaders(request: NextRequest): Locale {
+    // 1. Check cookie for saved preference
+    const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+    if (cookieLocale && i18n.locales.includes(cookieLocale as Locale)) {
+        return cookieLocale as Locale;
+    }
+
+    // 2. Check Accept-Language header
+    const acceptLanguage = request.headers.get('accept-language');
+    if (acceptLanguage) {
+        const languages = acceptLanguage
+            .split(',')
+            .map((lang) => {
+                const [code, q] = lang.trim().split(';q=');
+                return { code: code.split('-')[0].toLowerCase(), quality: q ? parseFloat(q) : 1 };
+            })
+            .sort((a, b) => b.quality - a.quality);
+
+        for (const { code } of languages) {
+            if (i18n.locales.includes(code as Locale)) {
+                return code as Locale;
+            }
+        }
+    }
+
+    // 3. Default
+    return i18n.defaultLocale;
+}
+
+function getLocaleFromPathname(pathname: string): Locale | null {
+    const segments = pathname.split('/');
+    const potentialLocale = segments[1];
+    if (i18n.locales.includes(potentialLocale as Locale)) {
+        return potentialLocale as Locale;
+    }
+    return null;
+}
 
 export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
+
+    // Skip locale handling for static files and API routes
+    const isStaticOrApi =
+        pathname.startsWith('/_next') ||
+        pathname.startsWith('/api') ||
+        pathname.startsWith('/admin') ||
+        pathname.includes('.') ||
+        pathname.startsWith('/favicon');
+
+    if (!isStaticOrApi) {
+        const pathnameLocale = getLocaleFromPathname(pathname);
+
+        // If no locale in pathname, redirect to detected locale
+        if (!pathnameLocale) {
+            const detectedLocale = getLocaleFromHeaders(request);
+            const newUrl = new URL(`/${detectedLocale}${pathname}`, request.url);
+            newUrl.search = request.nextUrl.search;
+
+            const response = NextResponse.redirect(newUrl);
+            response.cookies.set('NEXT_LOCALE', detectedLocale, {
+                maxAge: 365 * 24 * 60 * 60, // 1 year
+                path: '/',
+            });
+            return response;
+        }
+    }
+
+    // Continue with Supabase session refresh
     return await updateSession(request);
 }
 

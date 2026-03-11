@@ -1,0 +1,161 @@
+.section {
+    padding: var(--space-4xl) 0 calc(var(--space-4xl) + var(--space-xl));
+    background: linear-gradient(180deg,
+            var(--color-bg) 0%,
+            var(--color-bg-alt) 100%);
+    position: relative;
+}
+
+/* ── Header ── */
+.sectionHeader {
+    text-align: center;
+    margin-bottom: var(--space-3xl);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.sectionLabel {
+    display: inline-block;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-primary);
+    margin-bottom: var(--space-sm);
+    padding: 0.3rem 1rem;
+    background: rgba(45, 90, 61, 0.08);
+    border-radius: var(--radius-full);
+}
+
+.sectionTitle {
+    font-size: var(--font-size-3xl);
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+    line-height: var(--line-height-tight);
+}
+
+.sectionSubtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+}
+
+/* ── Grid ── */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+}
+
+/* ── Card ── */
+.card {
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-2xl);
+    background-color: var(--color-white);
+    border-radius: var(--radius-xl, 16px);
+    border: 1px solid var(--color-border-light);
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow:
+        0 12px 40px rgba(45, 90, 61, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.04);
+    border-color: rgba(45, 90, 61, 0.15);
+}
+
+/* Background decorative icon */
+.bgIcon {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    pointer-events: none;
+    color: var(--color-primary);
+    opacity: 0.06;
+    transition: opacity 0.4s ease;
+}
+
+.card:hover .bgIcon {
+    opacity: 0.1;
+}
+
+/* ── Card Icon ── */
+.cardIcon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(45, 90, 61, 0.08), rgba(45, 90, 61, 0.03));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+    color: var(--color-primary);
+    transition: background 0.3s ease;
+}
+
+.card:hover .cardIcon {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: white;
+}
+
+/* ── Card Text ── */
+.cardTitle {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+}
+
+.cardSubtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-light);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--space-lg);
+}
+
+/* ── Checkmark Points ── */
+.cardPoints {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+    padding-top: var(--space-lg);
+}
+
+.point {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    line-height: var(--line-height-base);
+}
+
+.point svg {
+    flex-shrink: 0;
+    color: var(--color-primary);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .grid {
+        grid-template-columns: 1fr;
+        max-width: 480px;
+        margin: 0 auto;
+        gap: var(--space-lg);
+    }
+}
