@@ -21,6 +21,57 @@
     border-radius: var(--radius-full);
 }
 
+/* ═══ Sliding Tabs ═══ */
+.tabsWrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-2xl);
+}
+
+.tabs {
+    position: relative;
+    display: inline-flex;
+    gap: var(--space-xs);
+    background: var(--color-bg-alt);
+    border-radius: var(--radius-full);
+    padding: 4px;
+}
+
+.tab {
+    position: relative;
+    z-index: 1;
+    padding: 0.5rem 1.25rem;
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-light);
+    cursor: pointer;
+    border-radius: var(--radius-full);
+    transition: color 0.3s ease;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    color: var(--color-text);
+}
+
+.tabActive {
+    color: var(--color-white);
+}
+
+.tabIndicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    box-shadow: 0 2px 8px rgba(45, 90, 61, 0.3);
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+}
+
 /* Product Grid */
 .grid {
     display: grid;
@@ -75,6 +126,15 @@
 
     .sectionTitle {
         font-size: var(--font-size-2xl);
+    }
+
+    .tabsWrapper {
+        margin-bottom: var(--space-xl);
+    }
+
+    .tab {
+        padding: 0.4rem 0.9rem;
+        font-size: var(--font-size-xs);
     }
 
     .grid {
