@@ -27,9 +27,51 @@ async function getPost(slug: string) {
     return null;
 }
 
+async function getRelatedPosts(currentSlug: string, tags: string[]) {
+    try {
+        const res = await fetch(
+            `${supabaseUrl}/rest/v1/blog_posts?is_published=eq.true&slug=neq.${currentSlug}&order=published_at.desc&limit=3`,
+            {
+                headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+                next: { revalidate: 600 },
+            }
+        );
+        if (res.ok) return await res.json();
+    } catch { /* fallback */ }
+    return [];
+}
+
 function estimateReadingTime(html: string): number {
     const text = html.replace(/<[^>]*>/g, "");
     return Math.max(1, Math.ceil(text.split(/\s+/).length / 200));
+}
+
+function extractHeadings(html: string): { id: string; text: string }[] {
+    const headings: { id: string; text: string }[] = [];
+    const regex = /<h2[^>]*>(.*?)<\/h2>/gi;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        const text = match[1].replace(/<[^>]*>/g, "");
+        const id = text
+            .toLowerCase()
+            .replace(/[äÄ]/g, "ae").replace(/[öÖ]/g, "oe").replace(/[üÜ]/g, "ue").replace(/ß/g, "ss")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+        headings.push({ id, text });
+    }
+    return headings;
+}
+
+function addIdsToHeadings(html: string): string {
+    return html.replace(/<h2([^>]*)>(.*?)<\/h2>/gi, (_, attrs, content) => {
+        const text = content.replace(/<[^>]*>/g, "");
+        const id = text
+            .toLowerCase()
+            .replace(/[äÄ]/g, "ae").replace(/[öÖ]/g, "oe").replace(/[üÜ]/g, "ue").replace(/ß/g, "ss")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+        return `<h2 id="${id}"${attrs}>${content}</h2>`;
+    });
 }
 
 export async function generateMetadata({
@@ -65,7 +107,7 @@ export default async function BlogArticlePage({
 
     if (!post) notFound();
 
-    const t = post.translations[locale] || post.translations.de || { title: "", excerpt: "", content: "" };
+    const t = post.translations[locale] || post.translations.de || { title: "", excerpt: "", content: "", sources: [] };
     const readTime = estimateReadingTime(t.content || "");
     const date = post.published_at
         ? new Date(post.published_at).toLocaleDateString(
@@ -74,11 +116,20 @@ export default async function BlogArticlePage({
         )
         : "";
 
+    const headings = extractHeadings(t.content || "");
+    const contentWithIds = addIdsToHeadings(t.content || "");
+    const sources: { text: string; url?: string }[] = t.sources || [];
+    const relatedPosts = await getRelatedPosts(slug, post.tags || []);
+
     const disclaimerText: Record<string, string> = {
         de: "Die Informationen in diesem Artikel dienen ausschließlich zu Bildungszwecken und sind kein Ersatz für professionelle medizinische Beratung.",
         en: "The information in this article is for educational purposes only and is not a substitute for professional medical advice.",
         nl: "De informatie in dit artikel is uitsluitend bedoeld voor educatieve doeleinden en is geen vervanging voor professioneel medisch advies.",
     };
+
+    const tocLabel: Record<string, string> = { de: "Inhaltsverzeichnis", en: "Table of Contents", nl: "Inhoudsopgave" };
+    const sourcesLabel: Record<string, string> = { de: "Quellen", en: "Sources", nl: "Bronnen" };
+    const relatedLabel: Record<string, string> = { de: "Weitere Artikel", en: "More Articles", nl: "Meer Artikelen" };
 
     return (
         <main className={styles.articlePage}>
@@ -116,14 +167,68 @@ export default async function BlogArticlePage({
                     </div>
                 )}
 
+                {/* Table of Contents */}
+                {headings.length > 2 && (
+                    <nav className={styles.toc}>
+                        <h3 className={styles.tocTitle}>{tocLabel[locale] || tocLabel.de}</h3>
+                        <ol className={styles.tocList}>
+                            {headings.map((h, i) => (
+                                <li key={i}>
+                                    <a href={`#${h.id}`} className={styles.tocLink}>{h.text}</a>
+                                </li>
+                            ))}
+                        </ol>
+                    </nav>
+                )}
+
                 <div
                     className={styles.prose}
-                    dangerouslySetInnerHTML={{ __html: t.content }}
+                    dangerouslySetInnerHTML={{ __html: contentWithIds }}
                 />
+
+                {/* Sources */}
+                {sources.length > 0 && (
+                    <div className={styles.sources}>
+                        <h3 className={styles.sourcesTitle}>{sourcesLabel[locale] || sourcesLabel.de}</h3>
+                        <ol className={styles.sourcesList}>
+                            {sources.map((s, i) => (
+                                <li key={i}>
+                                    {s.url ? (
+                                        <a href={s.url} target="_blank" rel="noopener noreferrer">{s.text}</a>
+                                    ) : (
+                                        <span>{s.text}</span>
+                                    )}
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                )}
 
                 <div className={styles.disclaimer}>
                     {disclaimerText[locale] || disclaimerText.de}
                 </div>
+
+                {/* Related Posts */}
+                {relatedPosts.length > 0 && (
+                    <div className={styles.related}>
+                        <h3 className={styles.relatedTitle}>{relatedLabel[locale] || relatedLabel.de}</h3>
+                        <div className={styles.relatedGrid}>
+                            {relatedPosts.map((rp: { id: string; slug: string; featured_image: string | null; translations: Record<string, { title: string; excerpt: string }> }) => {
+                                const rt = rp.translations[locale] || rp.translations.de || { title: "", excerpt: "" };
+                                return (
+                                    <Link key={rp.id} href={`/${locale}/blog/${rp.slug}`} className={styles.relatedCard}>
+                                        {rp.featured_image && (
+                                            <div className={styles.relatedImage}>
+                                                <Image src={rp.featured_image} alt={rt.title} fill style={{ objectFit: "cover" }} sizes="33vw" />
+                                            </div>
+                                        )}
+                                        <h4 className={styles.relatedCardTitle}>{rt.title}</h4>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </Container>
         </main>
     );
