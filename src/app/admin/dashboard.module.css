@@ -1,0 +1,280 @@
+/* ═══ Dashboard Analytics ═══ */
+
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* ─── Period Selector ─── */
+.periodSelector {
+    display: flex;
+    gap: 0.25rem;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 3px;
+    width: fit-content;
+}
+
+.periodBtn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    color: #64748b;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.periodBtn:hover {
+    color: #1e293b;
+}
+
+.periodBtnActive {
+    background: white;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── KPI Cards ─── */
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.kpiCard {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+}
+
+.kpiLabel {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.kpiValueRow {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.kpiValue {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.kpiChange {
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.kpiUp {
+    color: #16a34a;
+}
+
+.kpiDown {
+    color: #dc2626;
+}
+
+.kpiNeutral {
+    color: #64748b;
+}
+
+/* ─── Chart Cards ─── */
+.chartRow {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+}
+
+.chartCard {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+}
+
+.chartTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
+}
+
+/* ─── Insights Grid ─── */
+.insightsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* ─── Data Tables ─── */
+.miniTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.miniTable th {
+    text-align: left;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.miniTable td {
+    padding: 0.6rem 0;
+    font-size: 0.85rem;
+    color: #334155;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.miniTable tr:last-child td {
+    border-bottom: none;
+}
+
+.miniTable td:last-child,
+.miniTable th:last-child {
+    text-align: right;
+}
+
+.rankBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+}
+
+.rank1 {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.rank2 {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.rank3 {
+    background: #fed7aa;
+    color: #9a3412;
+}
+
+.rankOther {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* ─── Stat Bars ─── */
+.statBar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+}
+
+.statBarLabel {
+    font-size: 0.85rem;
+    color: #334155;
+    min-width: 100px;
+}
+
+.statBarTrack {
+    flex: 1;
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.statBarFill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.statBarValue {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    min-width: 60px;
+    text-align: right;
+}
+
+/* ─── Legend ─── */
+.legendRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #475569;
+}
+
+.legendDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* ─── Loading ─── */
+.dashboardLoading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+    .kpiGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chartRow {
+        grid-template-columns: 1fr;
+    }
+
+    .insightsGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .kpiGrid {
+        grid-template-columns: 1fr;
+    }
+}
