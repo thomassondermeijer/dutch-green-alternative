@@ -17,7 +17,7 @@ async function getProducts() {
 
     try {
         const res = await fetch(
-            `${supabaseUrl}/rest/v1/products?is_active=eq.true&order=sort_order.asc&limit=6`,
+            `${supabaseUrl}/rest/v1/products?is_active=eq.true&order=sort_order.asc`,
             {
                 headers: {
                     apikey: supabaseKey,
