@@ -17,6 +17,7 @@ type CouponData = {
     code: string;
     discount_type: "percentage" | "fixed";
     discount_value: number;
+    max_discount_amount: number | null;
     min_order_amount: number | null;
 };
 
@@ -64,6 +65,10 @@ export function CheckoutForm({ locale, dict }: CheckoutFormProps) {
     if (coupon) {
         if (coupon.discount_type === "percentage") {
             discountAmount = subtotal * (coupon.discount_value / 100);
+            // Apply max discount cap
+            if (coupon.max_discount_amount && discountAmount > coupon.max_discount_amount) {
+                discountAmount = coupon.max_discount_amount;
+            }
         } else {
             discountAmount = coupon.discount_value;
         }
@@ -82,7 +87,10 @@ export function CheckoutForm({ locale, dict }: CheckoutFormProps) {
             const res = await fetch("/api/coupons/validate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code: couponInput.trim().toUpperCase() }),
+                body: JSON.stringify({
+                    code: couponInput.trim().toUpperCase(),
+                    cartItems: items.map((item) => ({ id: item.id, slug: item.slug })),
+                }),
             });
 
             const data = await res.json();

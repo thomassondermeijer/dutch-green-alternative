@@ -324,6 +324,41 @@ export async function POST(req: NextRequest) {
             body: orderItems,
         });
 
+        // 6b. Log coupon usage
+        if (body.couponCode && discountAmount > 0) {
+            try {
+                // Look up coupon ID
+                const couponResult = await supabaseQuery(
+                    `coupons?code=eq.${encodeURIComponent(body.couponCode)}&select=id,usage_count`,
+                    { method: "GET" }
+                );
+                if (couponResult.length > 0) {
+                    const couponId = couponResult[0].id;
+                    const currentCount = couponResult[0].usage_count || 0;
+
+                    // Insert usage record
+                    await supabaseQuery("coupon_usage", {
+                        method: "POST",
+                        body: {
+                            coupon_id: couponId,
+                            order_id: orderId,
+                            customer_email: body.email,
+                            discount_applied: discountAmount,
+                        },
+                    });
+
+                    // Increment usage count
+                    await supabaseQuery(`coupons?id=eq.${couponId}`, {
+                        method: "PATCH",
+                        body: { usage_count: currentCount + 1 },
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to log coupon usage:", err);
+                // Don't fail the order for this
+            }
+        }
+
         // --- INVOICE FLOW ---
         if (isInvoice) {
             // Calculate due date
