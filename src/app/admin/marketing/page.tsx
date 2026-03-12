@@ -336,7 +336,6 @@ export default function MarketingPage() {
         let bodyHtml = ((camp[bodyKey] as string) || camp.body_html_de || "");
         bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, "Max");
         bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(camp.coupon_discount));
-        bodyHtml = bodyHtml.replace(/\{SEASONAL_EVENT\}/g, camp.coupon_reason || "");
 
         return buildMarketingNewsletterEmail({
             subject: (camp[subjectKey] as string) || camp.subject_de,

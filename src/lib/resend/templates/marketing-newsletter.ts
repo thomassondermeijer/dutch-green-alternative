@@ -44,6 +44,12 @@ export function buildMarketingNewsletterEmail(data: MarketingEmailData): string 
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  h2 { font-family: 'Outfit', sans-serif !important; color: #1e293b; font-size: 20px; font-weight: 700; margin: 28px 0 12px; }
+  h3 { font-family: 'Outfit', sans-serif !important; color: #2d5a3d; font-size: 16px; font-weight: 600; }
+  p { font-size: 15px; line-height: 1.7; color: #374151; margin: 0 0 14px; }
+  a { color: #2d5a3d; }
+</style>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">

@@ -6,52 +6,15 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Same seasonal coupon logic as edge function, but accepts a target date
-function getSeasonalCouponForDate(targetDate: Date): { code: string; discount: number; reason: string } {
-    const year = targetDate.getFullYear();
-    const yr = year.toString().slice(-2);
-    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4), k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const easterMonth = Math.floor((h + l - 7 * m + 114) / 31);
-    const easterDay = ((h + l - 7 * m + 114) % 31) + 1;
-    const easter = new Date(year, easterMonth - 1, easterDay);
-
-    const events = [
-        { date: new Date(year, 0, 1), code: "NEWYEAR" + yr, discount: 12, reason: "New Year" },
-        { date: new Date(year, 1, 14), code: "VALENTINE" + yr, discount: 10, reason: "Valentine's Day" },
-        { date: new Date(year, 2, 20), code: "SLEEPDAY" + yr, discount: 10, reason: "World Sleep Day" },
-        { date: new Date(year, 2, 21), code: "SPRING" + yr, discount: 10, reason: "Spring Equinox" },
-        { date: new Date(year, 3, 7), code: "HEALTHDAY" + yr, discount: 10, reason: "World Health Day" },
-        { date: easter, code: "OSTERN" + yr, discount: 12, reason: "Easter" },
-        { date: new Date(year, 3, 27), code: "KONINGSDAG" + yr, discount: 10, reason: "King's Day" },
-        { date: new Date(year, 4, 11), code: "MUTTERTAG" + yr, discount: 10, reason: "Mother's Day" },
-        { date: new Date(year, 5, 15), code: "VATERTAG" + yr, discount: 10, reason: "Father's Day" },
-        { date: new Date(year, 5, 21), code: "SUMMER" + yr, discount: 10, reason: "Summer Solstice" },
-        { date: new Date(year, 8, 21), code: "WELLNESS" + yr, discount: 10, reason: "World Gratitude Day" },
-        { date: new Date(year, 8, 23), code: "HERBST" + yr, discount: 10, reason: "Autumn Equinox" },
-        { date: new Date(year, 9, 10), code: "MENTALHEALTH" + yr, discount: 10, reason: "World Mental Health Day" },
-        { date: new Date(year, 10, 28), code: "BLACKFRIDAY" + yr, discount: 20, reason: "Black Friday" },
-        { date: new Date(year, 11, 21), code: "WINTER" + yr, discount: 10, reason: "Winter Solstice" },
-        { date: new Date(year, 11, 25), code: "KERST" + yr, discount: 15, reason: "Christmas" },
-        { date: new Date(year + 1, 0, 1), code: "NEWYEAR" + (Number(yr) + 1), discount: 12, reason: "New Year" },
-    ];
-    events.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    // Find the next event on or after the target date
-    return events.find(e => e.date.getTime() >= targetDate.getTime() - 86400000) || events[0];
-}
-
 /**
  * POST /api/admin/marketing/approve
- * Approve a campaign with smart scheduling and dynamic coupon assignment.
+ * Approve a campaign with smart scheduling.
  * 
- * - Auto-calculates send date: latest scheduled campaign + 15 days, or tomorrow
- * - Picks coupon based on the scheduled date (not today)
- * - Creates coupon in DB if it doesn't exist
+ * Coupon is already assigned at generation time (edge function Step 0).
+ * This endpoint only handles:
+ * - Auto-calculating send date (latest scheduled + 15 days, or tomorrow)
+ * - Collision avoidance (same day → +15 days)
+ * - Optional manual date override
  */
 export async function POST(req: NextRequest) {
     try {
@@ -62,7 +25,18 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "campaignId required" }, { status: 400 });
         }
 
-        // ═══ Step 1: Calculate send date ═══
+        // ═══ Step 1: Fetch campaign (to get its existing coupon) ═══
+        const { data: campaign, error: fetchErr } = await supabaseAdmin
+            .from("marketing_campaigns")
+            .select("coupon_code, coupon_discount, coupon_reason")
+            .eq("id", campaignId)
+            .single();
+
+        if (fetchErr || !campaign) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        // ═══ Step 2: Calculate send date ═══
         let sendDate: Date;
 
         if (scheduledFor) {
@@ -89,7 +63,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // ═══ Step 2: Collision check — if another campaign is on the same day, push +15 days ═══
+        // ═══ Step 3: Collision check ═══
         const dayStart = new Date(sendDate);
         dayStart.setUTCHours(0, 0, 0, 0);
         const dayEnd = new Date(sendDate);
@@ -104,7 +78,6 @@ export async function POST(req: NextRequest) {
             .lte("scheduled_for", dayEnd.toISOString());
 
         if (sameDay && sameDay.length > 0) {
-            // Push 15 days later
             sendDate = new Date(sendDate.getTime() + 15 * 86400000);
         }
 
@@ -113,37 +86,10 @@ export async function POST(req: NextRequest) {
             sendDate.setUTCHours(8, 0, 0, 0);
         }
 
-        // ═══ Step 3: Pick coupon based on the scheduled send date ═══
-        const coupon = getSeasonalCouponForDate(sendDate);
-
-        // Create coupon in DB if it doesn't exist
-        const { data: existingCoupon } = await supabaseAdmin
-            .from("coupons")
-            .select("id")
-            .eq("code", coupon.code)
-            .maybeSingle();
-
-        if (!existingCoupon) {
-            await supabaseAdmin.from("coupons").insert({
-                code: coupon.code,
-                discount_type: "percentage",
-                discount_value: coupon.discount,
-                is_active: true,
-                valid_from: new Date(sendDate.getTime() - 2 * 86400000).toISOString(), // valid 2 days before send
-                valid_until: new Date(sendDate.getTime() + 10 * 86400000).toISOString(), // valid 10 days after send
-                usage_limit: 999,
-                usage_count: 0,
-                description: `Auto-generated for ${coupon.reason} newsletter campaign`,
-            });
-        }
-
-        // ═══ Step 4: Update campaign ═══
+        // ═══ Step 4: Update campaign (keep existing coupon from generation) ═══
         const updateData: Record<string, unknown> = {
             status: "approved",
             scheduled_for: sendDate.toISOString(),
-            coupon_code: coupon.code,
-            coupon_discount: coupon.discount,
-            coupon_reason: coupon.reason,
             updated_at: new Date().toISOString(),
         };
 
@@ -168,9 +114,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             scheduled_for: sendDate.toISOString(),
-            coupon_code: coupon.code,
-            coupon_discount: coupon.discount,
-            coupon_reason: coupon.reason,
+            coupon_code: campaign.coupon_code,
+            coupon_discount: campaign.coupon_discount,
+            coupon_reason: campaign.coupon_reason,
         });
     } catch (err) {
         console.error("[Marketing Approve]", err);
