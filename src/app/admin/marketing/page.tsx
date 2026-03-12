@@ -554,6 +554,29 @@ export default function MarketingPage() {
                                 </div>
                             )}
 
+                            {/* Generation Log */}
+                            {selectedCampaign.generation_log && Object.keys(selectedCampaign.generation_log).length > 0 && (
+                                <details style={{ marginBottom: "1rem", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                                    <summary style={{ padding: "10px 16px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: "#64748b", userSelect: "none" }}>
+                                        🔍 Generation Log — Step: {String(selectedCampaign.generation_log.step || "unknown").toUpperCase()}
+                                        {selectedCampaign.generation_log.error ? " ❌" : ""}
+                                        {selectedCampaign.generation_log.completed ? " ✅" : ""}
+                                    </summary>
+                                    <div style={{ padding: "0 16px 12px", fontSize: "0.75rem", fontFamily: "monospace", lineHeight: 1.8 }}>
+                                        {Object.entries(selectedCampaign.generation_log)
+                                            .filter(([k]) => !["step"].includes(k))
+                                            .map(([key, val]) => (
+                                                <div key={key} style={{ display: "flex", gap: "8px", borderBottom: "1px solid #f1f5f9", padding: "2px 0" }}>
+                                                    <span style={{ color: key.includes("error") ? "#dc2626" : "#64748b", fontWeight: 600, minWidth: 200 }}>{key}</span>
+                                                    <span style={{ color: key.includes("error") ? "#dc2626" : "#1e293b", wordBreak: "break-all" }}>
+                                                        {typeof val === "string" && val.length > 200 ? val.slice(0, 200) + "..." : String(val)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </details>
+                            )}
+
                             {/* Campaign info bar — editable coupon/discount */}
                             <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                                 <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px" }}>
