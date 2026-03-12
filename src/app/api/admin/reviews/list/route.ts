@@ -18,8 +18,8 @@ export async function GET() {
                 id, customer_name, customer_email, rating, text, image_urls,
                 language, is_approved, verified_purchase, approved_at, created_at,
                 coupon_code, order_id,
-                product:products(name),
-                order:orders!reviews_order_id_fkey(order_number)
+                products(name),
+                orders(order_number)
             `)
             .order("created_at", { ascending: false });
 
