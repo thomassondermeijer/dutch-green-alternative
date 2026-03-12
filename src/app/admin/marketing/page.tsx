@@ -13,6 +13,12 @@ type Article = {
 
 type SubjectOption = { de: string; nl: string; en: string; angle: string };
 
+type CampaignStats = {
+    delivered?: number; opened?: number; clicked?: number;
+    bounced?: number; complained?: number;
+    unique_opens?: number; unique_clicks?: number;
+};
+
 type Campaign = {
     id: string; source_url: string; source_title: string;
     subject_de: string; subject_nl: string; subject_en: string;
@@ -27,6 +33,7 @@ type Campaign = {
     subject_options: SubjectOption[];
     created_at: string; generation_log: Record<string, unknown>;
     article_id: string | null;
+    stats: CampaignStats;
 };
 
 type AudienceFilter = {
@@ -84,6 +91,7 @@ export default function MarketingPage() {
     const [audienceFilter, setAudienceFilter] = useState<AudienceFilter>({});
     const [filteredCount, setFilteredCount] = useState<number | null>(null);
     const [savedCoupon, setSavedCoupon] = useState<{ code: string; discount: number } | null>(null);
+    const [scheduleDate, setScheduleDate] = useState("");
 
     // Track which articles already have campaigns
     const usedArticleIds = new Set(campaigns.map(c => c.article_id).filter(Boolean));
@@ -496,7 +504,16 @@ export default function MarketingPage() {
                                                     <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
                                                         📦 {product?.name || camp.recommended_product_slug} · 🏷️ {camp.coupon_code} ({camp.coupon_discount}%)
                                                         {camp.sent_count > 0 && ` · ✉️ ${camp.sent_count} sent`}
+                                                        {camp.scheduled_for && camp.status === "approved" && (
+                                                            <span style={{ color: "#1e40af" }}> · 📅 {new Date(camp.scheduled_for).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                                                        )}
                                                     </p>
+                                                    {camp.stats && camp.sent_count > 0 && (
+                                                        <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>
+                                                            {camp.stats.unique_opens != null && `👁 ${camp.stats.unique_opens} opens`}
+                                                            {camp.stats.unique_clicks != null && ` · 🔗 ${camp.stats.unique_clicks} clicks`}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 {camp.image_url && (
                                                     <img src={camp.image_url} alt="" style={{ width: 64, height: 64, borderRadius: "8px", objectFit: "cover", marginLeft: "1rem" }} />
@@ -794,9 +811,26 @@ export default function MarketingPage() {
                             <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
                                 {selectedCampaign.status === "draft" && (
                                     <>
-                                        <button onClick={() => handleApprove()} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>✅ Approve</button>
-                                        <button onClick={() => { const d = new Date(Date.now() + 86400000); handleApprove(d.toISOString()); }} style={btnSecondary}>⏰ Schedule (tomorrow)</button>
+                                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                            <input type="datetime-local" value={scheduleDate}
+                                                onChange={(e) => setScheduleDate(e.target.value)}
+                                                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit" }} />
+                                            <button onClick={() => {
+                                                const d = scheduleDate ? new Date(scheduleDate).toISOString() : new Date(Date.now() + 86400000).toISOString();
+                                                handleApprove(d);
+                                            }} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>
+                                                ✅ Approve & Schedule
+                                            </button>
+                                        </div>
+                                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{scheduleDate ? `📅 ${new Date(scheduleDate).toLocaleString()}` : "📅 Default: tomorrow"}</span>
                                     </>
+                                )}
+                                {selectedCampaign.status === "approved" && selectedCampaign.scheduled_for && (
+                                    <div style={{ background: "#dbeafe", borderRadius: "8px", padding: "8px 16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
+                                            📅 Scheduled: {new Date(selectedCampaign.scheduled_for).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                                        </span>
+                                    </div>
                                 )}
                                 {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved" || selectedCampaign.status === "generating") && (
                                     <button onClick={() => handleDelete(selectedCampaign.id)} style={btnDanger}>🗑️ Delete</button>
@@ -822,6 +856,47 @@ export default function MarketingPage() {
                                     </button>
                                 )}
                             </div>
+
+                            {/* Analytics Dashboard — only for sent campaigns */}
+                            {selectedCampaign.status === "sent" && selectedCampaign.sent_count > 0 && (
+                                <div style={{ marginTop: "1.5rem", background: "#f8fafc", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0" }}>
+                                    <h3 style={{ margin: "0 0 16px", fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>📊 Campaign Analytics</h3>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
+                                        {[
+                                            { label: "Sent", value: selectedCampaign.sent_count, icon: "✉️", color: "#3b82f6" },
+                                            {
+                                                label: "Delivered", value: selectedCampaign.stats?.delivered || 0, icon: "📬", color: "#22c55e",
+                                                pct: selectedCampaign.sent_count ? Math.round(((selectedCampaign.stats?.delivered || 0) / selectedCampaign.sent_count) * 100) : 0
+                                            },
+                                            {
+                                                label: "Opened", value: selectedCampaign.stats?.unique_opens || 0, icon: "👁", color: "#a855f7",
+                                                pct: selectedCampaign.sent_count ? Math.round(((selectedCampaign.stats?.unique_opens || 0) / selectedCampaign.sent_count) * 100) : 0
+                                            },
+                                            {
+                                                label: "Clicked", value: selectedCampaign.stats?.unique_clicks || 0, icon: "🔗", color: "#f59e0b",
+                                                pct: selectedCampaign.sent_count ? Math.round(((selectedCampaign.stats?.unique_clicks || 0) / selectedCampaign.sent_count) * 100) : 0
+                                            },
+                                            { label: "Bounced", value: selectedCampaign.stats?.bounced || 0, icon: "🔙", color: "#ef4444" },
+                                            { label: "Complaints", value: selectedCampaign.stats?.complained || 0, icon: "🚫", color: "#dc2626" },
+                                        ].map(s => (
+                                            <div key={s.label} style={{ background: "white", borderRadius: "8px", padding: "12px", textAlign: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                                                <div style={{ fontSize: "1.5rem" }}>{s.icon}</div>
+                                                <div style={{ fontSize: "1.4rem", fontWeight: 800, color: s.color }}>{s.value}</div>
+                                                <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>{s.label}</div>
+                                                {(s as { pct?: number }).pct != null && (
+                                                    <div style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "2px" }}>{(s as { pct: number }).pct}%</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {selectedCampaign.sent_at && (
+                                        <p style={{ margin: "12px 0 0", fontSize: "0.75rem", color: "#94a3b8", textAlign: "center" }}>
+                                            Sent on {new Date(selectedCampaign.sent_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                                            {selectedCampaign.failed_count > 0 && ` · ${selectedCampaign.failed_count} failed`}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>

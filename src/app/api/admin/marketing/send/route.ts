@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
                     recipient: recipient.email, template: "marketing-newsletter", subject,
                     language: locale, status: result.success ? "sent" : "failed",
                     resend_id: result.id || null,
-                    metadata: { campaign_id: campaignId, coupon: campaign.coupon_code, product: campaign.recommended_product_slug },
+                    campaign_id: campaignId,
+                    metadata: { coupon: campaign.coupon_code, product: campaign.recommended_product_slug },
                 });
                 if (result.success) sentCount++; else failedCount++;
             }));
