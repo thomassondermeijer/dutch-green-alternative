@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
 import styles from "../admin.module.css";
 
-type Tab = "campaigns" | "preview" | "stats";
+type Tab = "library" | "campaigns" | "preview" | "stats";
+
+type Article = {
+    id: string; url: string; title: string; has_cancer_content: boolean; scraped_at: string;
+};
+
 type Campaign = {
     id: string; source_url: string; source_title: string;
     subject_de: string; subject_nl: string; subject_en: string;
@@ -15,7 +20,21 @@ type Campaign = {
     coupon_code: string; coupon_discount: number;
     status: string; scheduled_for: string | null;
     sent_at: string | null; sent_count: number; failed_count: number;
+    send_order: number | null;
+    audience_filter: AudienceFilter;
     created_at: string; generation_log: Record<string, unknown>;
+    article_id: string | null;
+};
+
+type AudienceFilter = {
+    min_spent?: number;
+    max_spent?: number;
+    ordered_within_days?: number;
+    ordered_before_days?: number;
+    min_order_count?: number;
+    languages?: string[];
+    has_purchased_product?: string[];
+    never_purchased?: boolean;
 };
 
 const PRODUCTS: Record<string, { name: string; price: number }> = {
@@ -38,26 +57,40 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     failed: { bg: "#fef2f2", text: "#991b1b" },
 };
 
+// Shared button styles
+const btnBase = { padding: "8px 16px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit" } as const;
+const btnPrimary = { ...btnBase, background: "linear-gradient(135deg, #2d5a3d, #4a7c59)", color: "white" } as const;
+const btnSecondary = { ...btnBase, border: "1px solid #e2e8f0", background: "white", color: "#475569" } as const;
+const btnDanger = { ...btnBase, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626" } as const;
+
 export default function MarketingPage() {
-    const [tab, setTab] = useState<Tab>("campaigns");
+    const [tab, setTab] = useState<Tab>("library");
+    const [articles, setArticles] = useState<Article[]>([]);
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [locale, setLocale] = useState("de");
-    const [loading, setLoading] = useState(false);
+    const [showSource, setShowSource] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [scraping, setScraping] = useState(false);
     const [sending, setSending] = useState(false);
     const [testEmail, setTestEmail] = useState("");
-    const [showSource, setShowSource] = useState(false);
     const [customerCount, setCustomerCount] = useState(0);
     const [totalSent, setTotalSent] = useState(0);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [genProgress, setGenProgress] = useState("");
+    const [audienceFilter, setAudienceFilter] = useState<AudienceFilter>({});
+    const [filteredCount, setFilteredCount] = useState<number | null>(null);
+
+    const loadArticles = useCallback(async () => {
+        const supabase = createClient();
+        const { data } = await supabase.from("budmed_articles").select("*").order("scraped_at", { ascending: false });
+        setArticles((data || []) as Article[]);
+    }, []);
 
     const loadCampaigns = useCallback(async () => {
-        setLoading(true);
         const supabase = createClient();
         const { data } = await supabase.from("marketing_campaigns").select("*").order("created_at", { ascending: false });
         setCampaigns((data || []) as Campaign[]);
-        setLoading(false);
     }, []);
 
     const loadStats = useCallback(async () => {
@@ -68,29 +101,46 @@ export default function MarketingPage() {
         setTotalSent(sentCount || 0);
     }, []);
 
-    useEffect(() => { loadCampaigns(); loadStats(); }, [loadCampaigns, loadStats]);
+    useEffect(() => { loadArticles(); loadCampaigns(); loadStats(); }, [loadArticles, loadCampaigns, loadStats]);
 
     const showMsg = (type: "success" | "error", text: string) => {
         setMessage({ type, text });
         setTimeout(() => setMessage(null), 5000);
     };
 
-    const [genProgress, setGenProgress] = useState("");
+    // ═══ Scrape latest BudMed articles ═══
+    const handleScrape = async () => {
+        setScraping(true);
+        setMessage(null);
+        try {
+            const res = await fetch("/api/admin/marketing/scrape", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Scrape failed");
+            showMsg("success", `Scraped ${data.newly_scraped} new article(s) (${data.already_scraped} already in library)`);
+            loadArticles();
+        } catch (err) {
+            showMsg("error", err instanceof Error ? err.message : "Scrape failed");
+        }
+        setScraping(false);
+    };
 
-    // ═══ Generate new campaign (Edge Function + Realtime) ═══
-    const handleGenerate = async () => {
+    // ═══ Generate campaign from article (Edge Function + Realtime) ═══
+    const handleGenerate = async (articleId: string) => {
         setGenerating(true);
         setMessage(null);
         try {
             setGenProgress("Starting generation...");
-            const res = await fetch("/api/admin/marketing/generate", { method: "POST" });
+            const res = await fetch("/api/admin/marketing/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ articleId }),
+            });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to start generation");
 
             const campaignId = data.campaignId;
-            setGenProgress("🔍 Scraping BudMed Bulletin...");
+            setGenProgress("🔍 Loading article content...");
 
-            // Subscribe to realtime changes on this campaign
             const supabase = createClient();
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
@@ -100,35 +150,25 @@ export default function MarketingPage() {
 
                 const channel = supabase
                     .channel(`campaign-${campaignId}`)
-                    .on(
-                        "postgres_changes",
-                        {
-                            event: "UPDATE",
-                            schema: "public",
-                            table: "marketing_campaigns",
-                            filter: `id=eq.${campaignId}`,
-                        },
-                        (payload) => {
-                            const camp = payload.new as Campaign;
-                            const log = (camp.generation_log || {}) as Record<string, string>;
+                    .on("postgres_changes", {
+                        event: "UPDATE", schema: "public", table: "marketing_campaigns",
+                        filter: `id=eq.${campaignId}`,
+                    }, (payload) => {
+                        const camp = payload.new as Campaign;
+                        const log = (camp.generation_log || {}) as Record<string, string>;
+                        if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
+                        else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
 
-                            // Update progress based on step
-                            if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
-                            else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
-
-                            if (camp.status === "draft") {
-                                clearTimeout(timeout);
-                                channel.unsubscribe();
-                                showMsg("success", "Campaign draft generated! Click it to preview.");
-                                resolve();
-                            } else if (camp.status === "failed") {
-                                clearTimeout(timeout);
-                                channel.unsubscribe();
-                                showMsg("error", log.error ? `Generation failed: ${log.error}` : "Generation failed");
-                                resolve();
-                            }
+                        if (camp.status === "draft") {
+                            clearTimeout(timeout); channel.unsubscribe();
+                            showMsg("success", "Campaign generated! Go to Campaigns tab to review.");
+                            resolve();
+                        } else if (camp.status === "failed") {
+                            clearTimeout(timeout); channel.unsubscribe();
+                            showMsg("error", log.error ? `Failed: ${log.error}` : "Generation failed");
+                            resolve();
                         }
-                    )
+                    })
                     .subscribe();
             });
 
@@ -141,10 +181,32 @@ export default function MarketingPage() {
         setGenProgress("");
     };
 
+    // ═══ Delete campaign ═══
+    const handleDelete = async (campaignId: string) => {
+        if (!confirm("Delete this campaign?")) return;
+        try {
+            const res = await fetch("/api/admin/marketing/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ campaignId }),
+            });
+            if (!res.ok) throw new Error("Delete failed");
+            showMsg("success", "Deleted");
+            if (selectedCampaign?.id === campaignId) { setSelectedCampaign(null); setTab("campaigns"); }
+            loadCampaigns();
+        } catch (err) {
+            showMsg("error", err instanceof Error ? err.message : "Delete failed");
+        }
+    };
+
     // ═══ Approve campaign ═══
     const handleApprove = async (scheduledFor?: string) => {
         if (!selectedCampaign) return;
         try {
+            // Save audience filter first
+            const supabase = createClient();
+            await supabase.from("marketing_campaigns").update({ audience_filter: audienceFilter }).eq("id", selectedCampaign.id);
+
             const res = await fetch("/api/admin/marketing/approve", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -181,36 +243,48 @@ export default function MarketingPage() {
         setSending(false);
     };
 
-    // ═══ Delete draft campaign ═══
-    const handleDelete = async (campaignId: string) => {
-        if (!confirm("Delete this draft campaign?")) return;
+    // ═══ Count filtered recipients ═══
+    const updateFilteredCount = async (filter: AudienceFilter) => {
         try {
-            const res = await fetch("/api/admin/marketing/delete", {
-                method: "POST",
+            const res = await fetch("/api/admin/marketing/send", {
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ campaignId }),
+                body: JSON.stringify(filter),
             });
-            if (!res.ok) throw new Error("Delete failed");
-            showMsg("success", "Draft deleted");
-            if (selectedCampaign?.id === campaignId) {
-                setSelectedCampaign(null);
-                setTab("campaigns");
-            }
-            loadCampaigns();
-        } catch (err) {
-            showMsg("error", err instanceof Error ? err.message : "Delete failed");
+            const data = await res.json();
+            setFilteredCount(data.count ?? null);
+        } catch {
+            setFilteredCount(null);
         }
     };
 
-    // Build preview HTML
+    // Update count when filter changes
+    useEffect(() => {
+        const timer = setTimeout(() => updateFilteredCount(audienceFilter), 500);
+        return () => clearTimeout(timer);
+    }, [audienceFilter]);
+
+    // Load filter from selected campaign
+    useEffect(() => {
+        if (selectedCampaign?.audience_filter) {
+            setAudienceFilter(selectedCampaign.audience_filter);
+        } else {
+            setAudienceFilter({});
+        }
+    }, [selectedCampaign?.id]);
+
     const getPreviewHtml = (camp: Campaign) => {
         const subjectKey = `subject_${locale}` as keyof Campaign;
         const bodyKey = `body_html_${locale}` as keyof Campaign;
         const product = PRODUCTS[camp.recommended_product_slug] || { name: "CBD Oil", price: 29.95 };
 
+        // Replace placeholder with "Max" for preview
+        let bodyHtml = ((camp[bodyKey] as string) || camp.body_html_de || "");
+        bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, "Max");
+
         return buildMarketingNewsletterEmail({
             subject: (camp[subjectKey] as string) || camp.subject_de,
-            bodyHtml: (camp[bodyKey] as string) || camp.body_html_de,
+            bodyHtml,
             imageUrl: camp.image_url || undefined,
             productName: product.name,
             productSlug: camp.recommended_product_slug,
@@ -226,7 +300,7 @@ export default function MarketingPage() {
             <div className={styles.pageHeader}>
                 <h1 className={styles.pageTitle}>Marketing Hub</h1>
                 <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", borderRadius: "8px", padding: "3px" }}>
-                    {(["campaigns", "preview", "stats"] as Tab[]).map((t) => (
+                    {(["library", "campaigns", "preview", "stats"] as Tab[]).map((t) => (
                         <button key={t} onClick={() => setTab(t)} style={{
                             padding: "8px 16px", border: "none", borderRadius: "6px", cursor: "pointer",
                             fontSize: "0.85rem", fontWeight: 600, fontFamily: "inherit",
@@ -234,7 +308,7 @@ export default function MarketingPage() {
                             color: tab === t ? "#1e293b" : "#64748b",
                             boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                         }}>
-                            {t === "campaigns" ? "📢 Campaigns" : t === "preview" ? "👁 Preview" : "📊 Stats"}
+                            {t === "library" ? "📰 Content Library" : t === "campaigns" ? "📢 Campaigns" : t === "preview" ? "👁 Preview" : "📊 Stats"}
                         </button>
                     ))}
                 </div>
@@ -252,39 +326,91 @@ export default function MarketingPage() {
                 </div>
             )}
 
-            {/* ═══ TAB 1: Campaigns ═══ */}
-            {tab === "campaigns" && (
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+            {/* ═══ TAB 1: Content Library ═══ */}
+            {tab === "library" && (
                 <>
-                    {/* Action bar */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                            <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                                {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""} · {customerCount} subscribers
-                            </span>
-                        </div>
-                        <button onClick={handleGenerate} disabled={generating} style={{
-                            padding: "10px 20px", borderRadius: "8px", border: "none", cursor: generating ? "wait" : "pointer",
-                            background: generating ? "#94a3b8" : "linear-gradient(135deg, #2d5a3d, #4a7c59)",
-                            color: "white", fontWeight: 700, fontSize: "0.9rem", fontFamily: "inherit",
-                            opacity: generating ? 0.7 : 1, display: "flex", alignItems: "center", gap: "8px",
+                        <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                            {articles.length} article{articles.length !== 1 ? "s" : ""} in library
+                        </span>
+                        <button onClick={handleScrape} disabled={scraping} style={{
+                            ...btnPrimary, opacity: scraping ? 0.7 : 1, cursor: scraping ? "wait" : "pointer",
+                            display: "flex", alignItems: "center", gap: "8px",
                         }}>
-                            {generating ? (
+                            {scraping ? (
                                 <>
                                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                                    {genProgress || "Generating with AI..."}
+                                    Scraping BudMed...
                                 </>
-                            ) : "🤖 Generate New Campaign"}
+                            ) : "📰 Scrape Latest 10"}
                         </button>
                     </div>
 
-                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    {articles.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
+                            <p style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>📰</p>
+                            <p style={{ fontSize: "1.1rem", fontWeight: 600 }}>No articles yet</p>
+                            <p>Click &ldquo;Scrape Latest 10&rdquo; to populate the content library</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                            {articles.map(article => (
+                                <div key={article.id} style={{
+                                    background: "white", borderRadius: "12px", padding: "1.25rem",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9",
+                                }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "6px" }}>
+                                                {article.has_cancer_content && (
+                                                    <span style={{
+                                                        padding: "3px 10px", borderRadius: "20px", fontSize: "0.7rem",
+                                                        fontWeight: 700, background: "#fce7f3", color: "#be185d",
+                                                    }}>🎗️ CANCER</span>
+                                                )}
+                                                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                                                    {new Date(article.scraped_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <h3 style={{ margin: "0 0 4px", fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>
+                                                {article.title}
+                                            </h3>
+                                            <a href={article.url} target="_blank" rel="noopener noreferrer"
+                                                style={{ fontSize: "0.75rem", color: "#3b82f6", textDecoration: "none" }}>
+                                                View original →
+                                            </a>
+                                        </div>
+                                        <button
+                                            onClick={() => handleGenerate(article.id)}
+                                            disabled={generating}
+                                            style={{ ...btnPrimary, opacity: generating ? 0.5 : 1, whiteSpace: "nowrap" }}
+                                        >
+                                            {generating ? genProgress || "Generating..." : "🤖 Generate Campaign"}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
 
-                    {/* Campaign list */}
-                    {loading ? <p style={{ color: "#94a3b8" }}>Loading...</p> : campaigns.length === 0 ? (
+            {/* ═══ TAB 2: Campaigns (Queue) ═══ */}
+            {tab === "campaigns" && (
+                <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                        <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                            {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""} · {customerCount} subscribers
+                        </span>
+                    </div>
+
+                    {campaigns.length === 0 ? (
                         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
                             <p style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>📢</p>
                             <p style={{ fontSize: "1.1rem", fontWeight: 600 }}>No campaigns yet</p>
-                            <p>Click "Generate New Campaign" to create your first AI-powered email</p>
+                            <p>Go to Content Library to generate campaigns from articles</p>
                         </div>
                     ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -292,7 +418,8 @@ export default function MarketingPage() {
                                 const statusColor = STATUS_COLORS[camp.status] || STATUS_COLORS.draft;
                                 const product = PRODUCTS[camp.recommended_product_slug];
                                 return (
-                                    <div key={camp.id} onClick={() => { setSelectedCampaign(camp); setTab("preview"); }}
+                                    <div key={camp.id}
+                                        onClick={() => { setSelectedCampaign(camp); setTab("preview"); }}
                                         style={{
                                             background: "white", borderRadius: "12px", padding: "1.25rem",
                                             boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer",
@@ -324,13 +451,11 @@ export default function MarketingPage() {
                                             {camp.image_url && (
                                                 <img src={camp.image_url} alt="" style={{ width: 64, height: 64, borderRadius: "8px", objectFit: "cover", marginLeft: "1rem" }} />
                                             )}
-                                            {camp.status === "draft" && (
-                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(camp.id); }} style={{
-                                                    padding: "6px 10px", borderRadius: "6px", border: "1px solid #fecaca",
-                                                    background: "#fef2f2", color: "#dc2626", cursor: "pointer",
-                                                    fontSize: "0.75rem", fontWeight: 600, fontFamily: "inherit",
-                                                    marginLeft: "0.5rem", whiteSpace: "nowrap",
-                                                }}>🗑️</button>
+                                            {(camp.status === "draft" || camp.status === "generating") && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(camp.id); }}
+                                                    style={{ ...btnDanger, padding: "6px 10px", fontSize: "0.75rem", marginLeft: "0.5rem" }}>
+                                                    🗑️
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -341,19 +466,14 @@ export default function MarketingPage() {
                 </>
             )}
 
-            {/* ═══ TAB 2: Preview & Approve ═══ */}
+            {/* ═══ TAB 3: Preview & Approve ═══ */}
             {tab === "preview" && (
                 selectedCampaign ? (
                     <>
                         {/* Controls */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                            <button onClick={() => { setTab("campaigns"); setSelectedCampaign(null); }} style={{
-                                padding: "6px 14px", borderRadius: "6px", border: "1px solid #e2e8f0",
-                                background: "white", cursor: "pointer", fontSize: "0.8rem", fontFamily: "inherit",
-                            }}>← Back</button>
-
+                            <button onClick={() => { setTab("campaigns"); setSelectedCampaign(null); }} style={btnSecondary}>← Back</button>
                             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                {/* Language switcher */}
                                 <div style={{ display: "flex", gap: "2px", background: "#f1f5f9", borderRadius: "6px", padding: "2px" }}>
                                     {["de", "nl", "en"].map(l => (
                                         <button key={l} onClick={() => setLocale(l)} style={{
@@ -364,11 +484,10 @@ export default function MarketingPage() {
                                         }}>{l.toUpperCase()}</button>
                                     ))}
                                 </div>
-
                                 <button onClick={() => setShowSource(!showSource)} style={{
-                                    padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600,
-                                    cursor: "pointer", border: "1px solid #e2e8f0", fontFamily: "inherit",
-                                    background: showSource ? "#1e293b" : "white", color: showSource ? "white" : "#64748b",
+                                    ...btnSecondary,
+                                    background: showSource ? "#1e293b" : "white",
+                                    color: showSource ? "white" : "#64748b",
                                 }}>{showSource ? "👁 Preview" : "</> Source"}</button>
                             </div>
                         </div>
@@ -376,10 +495,10 @@ export default function MarketingPage() {
                         {/* Campaign info bar */}
                         <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                             {[
-                                { label: "Status", value: selectedCampaign.status.toUpperCase(), color: STATUS_COLORS[selectedCampaign.status]?.text || "#475569" },
+                                { label: "Status", value: selectedCampaign.status.toUpperCase(), color: STATUS_COLORS[selectedCampaign.status]?.text },
                                 { label: "Product", value: PRODUCTS[selectedCampaign.recommended_product_slug]?.name || "—" },
                                 { label: "Coupon", value: `${selectedCampaign.coupon_code} (${selectedCampaign.coupon_discount}%)` },
-                                { label: "Source", value: selectedCampaign.source_title?.slice(0, 40) || "—" },
+                                { label: "Audience", value: filteredCount !== null ? `${filteredCount} recipients` : "All subscribers" },
                             ].map(item => (
                                 <div key={item.label} style={{
                                     background: "white", borderRadius: "8px", padding: "10px 16px",
@@ -390,6 +509,105 @@ export default function MarketingPage() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Audience Filter Panel */}
+                        {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved") && (
+                            <div style={{
+                                background: "white", borderRadius: "12px", padding: "20px", marginBottom: "1rem",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9",
+                            }}>
+                                <h4 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#1e293b" }}>
+                                    🎯 Audience Filters
+                                    {filteredCount !== null && <span style={{ fontWeight: 400, color: "#64748b", marginLeft: "8px" }}>({filteredCount} matching)</span>}
+                                </h4>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+                                    {/* Min Spent */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Min. Total Spent (€)</label>
+                                        <input type="number" placeholder="0" min={0} value={audienceFilter.min_spent || ""}
+                                            onChange={e => setAudienceFilter({ ...audienceFilter, min_spent: e.target.value ? Number(e.target.value) : undefined })}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit", boxSizing: "border-box" }} />
+                                    </div>
+                                    {/* Max Spent */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Max. Total Spent (€)</label>
+                                        <input type="number" placeholder="∞" min={0} value={audienceFilter.max_spent || ""}
+                                            onChange={e => setAudienceFilter({ ...audienceFilter, max_spent: e.target.value ? Number(e.target.value) : undefined })}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit", boxSizing: "border-box" }} />
+                                    </div>
+                                    {/* Ordered Within */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Ordered Within (days)</label>
+                                        <select value={audienceFilter.ordered_within_days || ""}
+                                            onChange={e => setAudienceFilter({ ...audienceFilter, ordered_within_days: e.target.value ? Number(e.target.value) : undefined })}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit", boxSizing: "border-box" }}>
+                                            <option value="">All time</option>
+                                            <option value="30">30 days</option>
+                                            <option value="60">60 days</option>
+                                            <option value="90">90 days</option>
+                                            <option value="180">180 days</option>
+                                            <option value="365">1 year</option>
+                                        </select>
+                                    </div>
+                                    {/* Ordered Before */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Inactive For (days)</label>
+                                        <select value={audienceFilter.ordered_before_days || ""}
+                                            onChange={e => setAudienceFilter({ ...audienceFilter, ordered_before_days: e.target.value ? Number(e.target.value) : undefined })}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit", boxSizing: "border-box" }}>
+                                            <option value="">No filter</option>
+                                            <option value="90">90+ days inactive</option>
+                                            <option value="180">180+ days inactive</option>
+                                            <option value="365">1+ year inactive</option>
+                                        </select>
+                                    </div>
+                                    {/* Min Order Count */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Min. Orders</label>
+                                        <input type="number" placeholder="0" min={0} value={audienceFilter.min_order_count || ""}
+                                            onChange={e => setAudienceFilter({ ...audienceFilter, min_order_count: e.target.value ? Number(e.target.value) : undefined })}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit", boxSizing: "border-box" }} />
+                                    </div>
+                                    {/* Language */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Languages</label>
+                                        <div style={{ display: "flex", gap: "6px" }}>
+                                            {["de", "nl", "en"].map(lang => {
+                                                const active = !audienceFilter.languages || audienceFilter.languages.length === 0 || audienceFilter.languages.includes(lang);
+                                                return (
+                                                    <button key={lang} onClick={() => {
+                                                        const current = audienceFilter.languages || ["de", "nl", "en"];
+                                                        const updated = active ? current.filter(l => l !== lang) : [...current, lang];
+                                                        setAudienceFilter({ ...audienceFilter, languages: updated.length === 3 ? undefined : updated });
+                                                    }} style={{
+                                                        padding: "4px 10px", borderRadius: "4px", fontSize: "0.8rem", fontWeight: 600,
+                                                        border: "1px solid #e2e8f0", cursor: "pointer", fontFamily: "inherit",
+                                                        background: active ? "#2d5a3d" : "white", color: active ? "white" : "#94a3b8",
+                                                    }}>{lang.toUpperCase()}</button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {/* Never Purchased */}
+                                    <div>
+                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "4px" }}>Never Purchased</label>
+                                        <button onClick={() => setAudienceFilter({ ...audienceFilter, never_purchased: !audienceFilter.never_purchased })}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600,
+                                                border: "1px solid #e2e8f0", cursor: "pointer", fontFamily: "inherit",
+                                                background: audienceFilter.never_purchased ? "#dc2626" : "white",
+                                                color: audienceFilter.never_purchased ? "white" : "#94a3b8",
+                                            }}>{audienceFilter.never_purchased ? "Yes ✓" : "No"}</button>
+                                    </div>
+                                    {/* Reset */}
+                                    <div style={{ display: "flex", alignItems: "flex-end" }}>
+                                        <button onClick={() => setAudienceFilter({})} style={{ ...btnSecondary, fontSize: "0.8rem" }}>
+                                            ↻ Reset Filters
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Subject line */}
                         <div style={{ background: "white", borderRadius: "8px", padding: "12px 16px", marginBottom: "1rem", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
@@ -409,24 +627,12 @@ export default function MarketingPage() {
                                     {showSource ? "HTML Source" : "Email Preview"} — {locale.toUpperCase()}
                                 </span>
                             </div>
-
                             {showSource ? (
-                                <textarea
-                                    value={getPreviewHtml(selectedCampaign)}
-                                    readOnly
-                                    style={{
-                                        width: "100%", height: "700px", border: "none", padding: "16px",
-                                        fontFamily: "'JetBrains Mono', monospace", fontSize: "12px",
-                                        lineHeight: 1.5, resize: "none", background: "#1e293b", color: "#e2e8f0",
-                                        outline: "none",
-                                    }}
-                                />
+                                <textarea value={getPreviewHtml(selectedCampaign)} readOnly
+                                    style={{ width: "100%", height: "700px", border: "none", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: 1.5, resize: "none", background: "#1e293b", color: "#e2e8f0", outline: "none" }} />
                             ) : (
-                                <iframe
-                                    srcDoc={getPreviewHtml(selectedCampaign)}
-                                    style={{ width: "100%", height: "700px", border: "none", background: "#f3f4f6" }}
-                                    title="Campaign Preview"
-                                />
+                                <iframe srcDoc={getPreviewHtml(selectedCampaign)}
+                                    style={{ width: "100%", height: "700px", border: "none", background: "#f3f4f6" }} title="Campaign Preview" />
                             )}
                         </div>
 
@@ -434,25 +640,9 @@ export default function MarketingPage() {
                         <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
                             {selectedCampaign.status === "draft" && (
                                 <>
-                                    <button onClick={() => handleApprove()} style={{
-                                        padding: "10px 20px", borderRadius: "8px", border: "none", cursor: "pointer",
-                                        background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-                                        color: "white", fontWeight: 700, fontSize: "0.9rem", fontFamily: "inherit",
-                                    }}>✅ Approve</button>
-
-                                    <button onClick={() => {
-                                        const d = new Date(Date.now() + 86400000);
-                                        handleApprove(d.toISOString());
-                                    }} style={{
-                                        padding: "10px 20px", borderRadius: "8px", border: "1px solid #e2e8f0",
-                                        background: "white", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit",
-                                    }}>⏰ Approve + Schedule (tomorrow)</button>
-
-                                    <button onClick={() => handleDelete(selectedCampaign.id)} style={{
-                                        padding: "10px 20px", borderRadius: "8px", border: "1px solid #fecaca",
-                                        background: "#fef2f2", color: "#dc2626", cursor: "pointer",
-                                        fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit",
-                                    }}>🗑️ Delete Draft</button>
+                                    <button onClick={() => handleApprove()} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>✅ Approve</button>
+                                    <button onClick={() => { const d = new Date(Date.now() + 86400000); handleApprove(d.toISOString()); }} style={btnSecondary}>⏰ Schedule (tomorrow)</button>
+                                    <button onClick={() => handleDelete(selectedCampaign.id)} style={btnDanger}>🗑️ Delete Draft</button>
                                 </>
                             )}
 
@@ -460,27 +650,19 @@ export default function MarketingPage() {
                                 <div style={{ display: "flex", gap: "8px", alignItems: "center", marginLeft: "auto" }}>
                                     <input type="email" placeholder="test@email.com" value={testEmail}
                                         onChange={(e) => setTestEmail(e.target.value)}
-                                        style={{
-                                            padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0",
-                                            fontSize: "0.85rem", width: "200px", fontFamily: "inherit",
-                                        }}
-                                    />
-                                    <button onClick={() => handleSend(true)} disabled={!testEmail || sending} style={{
-                                        padding: "8px 16px", borderRadius: "6px", border: "1px solid #e2e8f0",
-                                        background: "white", cursor: testEmail ? "pointer" : "default",
-                                        fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit",
-                                        opacity: testEmail ? 1 : 0.5,
-                                    }}>📬 Test Send</button>
+                                        style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", width: "200px", fontFamily: "inherit" }} />
+                                    <button onClick={() => handleSend(true)} disabled={!testEmail || sending}
+                                        style={{ ...btnSecondary, opacity: testEmail ? 1 : 0.5 }}>📬 Test Send</button>
                                 </div>
                             )}
 
                             {selectedCampaign.status === "approved" && (
                                 <button onClick={() => handleSend(false)} disabled={sending} style={{
-                                    padding: "10px 20px", borderRadius: "8px", border: "none", cursor: sending ? "wait" : "pointer",
+                                    ...btnBase, cursor: sending ? "wait" : "pointer",
                                     background: sending ? "#94a3b8" : "linear-gradient(135deg, #dc2626, #ef4444)",
-                                    color: "white", fontWeight: 700, fontSize: "0.9rem", fontFamily: "inherit",
+                                    color: "white",
                                 }}>
-                                    {sending ? "Sending..." : `🚀 Send to ${customerCount} customers`}
+                                    {sending ? "Sending..." : `🚀 Send to ${filteredCount !== null ? filteredCount : customerCount} recipients`}
                                 </button>
                             )}
                         </div>
@@ -493,7 +675,7 @@ export default function MarketingPage() {
                 )
             )}
 
-            {/* ═══ TAB 3: Stats ═══ */}
+            {/* ═══ TAB 4: Stats ═══ */}
             {tab === "stats" && (
                 <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
@@ -501,9 +683,9 @@ export default function MarketingPage() {
                             { label: "Total Campaigns", value: campaigns.length, icon: "📢", color: "#2d5a3d" },
                             { label: "Sent", value: campaigns.filter(c => c.status === "sent").length, icon: "✅", color: "#16a34a" },
                             { label: "Drafts", value: campaigns.filter(c => c.status === "draft").length, icon: "📝", color: "#f59e0b" },
+                            { label: "Articles", value: articles.length, icon: "📰", color: "#8b5cf6" },
                             { label: "Subscribers", value: customerCount, icon: "👥", color: "#3b82f6" },
-                            { label: "Emails Delivered", value: totalSent, icon: "✉️", color: "#8b5cf6" },
-                            { label: "Bi-weekly Budget", value: `${customerCount}/3000`, icon: "📊", color: "#64748b" },
+                            { label: "Emails Delivered", value: totalSent, icon: "✉️", color: "#64748b" },
                         ].map(stat => (
                             <div key={stat.label} style={{
                                 background: "white", borderRadius: "12px", padding: "20px",
@@ -512,14 +694,11 @@ export default function MarketingPage() {
                                 <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>
                                     {stat.icon} {stat.label}
                                 </div>
-                                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: stat.color }}>
-                                    {stat.value}
-                                </div>
+                                <div style={{ fontSize: "1.5rem", fontWeight: 800, color: stat.color }}>{stat.value}</div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Campaign history */}
                     <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 700, color: "#1e293b" }}>Campaign History</h3>
                     {campaigns.filter(c => c.status === "sent").length === 0 ? (
                         <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No campaigns sent yet</p>
@@ -527,11 +706,7 @@ export default function MarketingPage() {
                         <table className={styles.table}>
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Subject</th>
-                                    <th>Sent</th>
-                                    <th>Failed</th>
-                                    <th>Coupon</th>
+                                    <th>Date</th><th>Subject</th><th>Sent</th><th>Failed</th><th>Coupon</th>
                                 </tr>
                             </thead>
                             <tbody>
