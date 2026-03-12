@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { i18n, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary";
 import { Container } from "@/components/ui/Container/Container";
@@ -17,7 +18,9 @@ export default async function CartPage({
         <main className={styles.page}>
             <Container>
                 <h1 className={styles.pageTitle}>{dict.cart.title}</h1>
-                <CartContent locale={locale} dict={dict} />
+                <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center" }}>Loading...</div>}>
+                    <CartContent locale={locale} dict={dict} />
+                </Suspense>
             </Container>
         </main>
     );

@@ -522,22 +522,45 @@ export default function MarketingPage() {
                             </div>
                         </div>
 
-                        {/* Campaign info bar */}
+                        {/* Campaign info bar — editable coupon/discount */}
                         <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                            {[
-                                { label: "Status", value: selectedCampaign.status.toUpperCase(), color: STATUS_COLORS[selectedCampaign.status]?.text },
-                                { label: "Product", value: PRODUCTS[selectedCampaign.recommended_product_slug]?.name || "—" },
-                                { label: "Coupon", value: `${selectedCampaign.coupon_code} (${selectedCampaign.coupon_discount}%)` },
-                                { label: "Audience", value: filteredCount !== null ? `${filteredCount} recipients` : "All subscribers" },
-                            ].map(item => (
-                                <div key={item.label} style={{
-                                    background: "white", borderRadius: "8px", padding: "10px 16px",
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px",
-                                }}>
-                                    <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "2px" }}>{item.label}</div>
-                                    <div style={{ fontSize: "0.85rem", fontWeight: 700, color: item.color || "#1e293b" }}>{item.value}</div>
-                                </div>
-                            ))}
+                            <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "2px" }}>Status</div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: STATUS_COLORS[selectedCampaign.status]?.text }}>{selectedCampaign.status.toUpperCase()}</div>
+                            </div>
+                            <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "2px" }}>Product</div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1e293b" }}>{PRODUCTS[selectedCampaign.recommended_product_slug]?.name || "—"}</div>
+                            </div>
+                            <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 200px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Coupon Code</div>
+                                <input type="text" value={selectedCampaign.coupon_code}
+                                    onChange={e => setSelectedCampaign({ ...selectedCampaign, coupon_code: e.target.value })}
+                                    style={{ width: "100%", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontWeight: 700, fontFamily: "monospace", boxSizing: "border-box" }} />
+                            </div>
+                            <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "0 0 120px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Discount %</div>
+                                <input type="number" min={1} max={100} value={selectedCampaign.coupon_discount}
+                                    onChange={e => setSelectedCampaign({ ...selectedCampaign, coupon_discount: Number(e.target.value) })}
+                                    style={{ width: "100%", padding: "4px 8px", borderRadius: "4px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontWeight: 700, boxSizing: "border-box", fontFamily: "inherit" }} />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "flex-end", flex: "0 0 auto" }}>
+                                <button onClick={async () => {
+                                    try {
+                                        const supabase = createClient();
+                                        await supabase.from("marketing_campaigns").update({
+                                            coupon_code: selectedCampaign.coupon_code,
+                                            coupon_discount: selectedCampaign.coupon_discount,
+                                        }).eq("id", selectedCampaign.id);
+                                        showMsg("success", "Coupon updated!");
+                                        loadCampaigns();
+                                    } catch { showMsg("error", "Save failed"); }
+                                }} style={{ ...btnPrimary, fontSize: "0.8rem", padding: "6px 14px" }}>💾 Save</button>
+                            </div>
+                            <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "2px" }}>Audience</div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1e293b" }}>{filteredCount !== null ? `${filteredCount} recipients` : "All subscribers"}</div>
+                            </div>
                         </div>
 
                         {/* Audience Filter Panel */}

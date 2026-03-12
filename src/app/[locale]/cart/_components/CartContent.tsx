@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/cart/cart-context";
 import { Button } from "@/components/ui/Button/Button";
 import type { Locale } from "@/i18n/config";
@@ -33,6 +34,7 @@ export function CartContent({ locale, dict }: CartContentProps) {
         freeShippingThreshold,
     } = useCart();
 
+    const searchParams = useSearchParams();
     const [couponCode, setCouponCode] = useState("");
     const [coupon, setCoupon] = useState<Coupon | null>(null);
     const [couponError, setCouponError] = useState("");
@@ -66,6 +68,26 @@ export function CartContent({ locale, dict }: CartContentProps) {
             setCouponLoading(false);
         }
     };
+
+    // Auto-apply coupon from URL parameter (set by marketing emails)
+    useEffect(() => {
+        const urlCoupon = searchParams.get("coupon");
+        if (urlCoupon && !coupon) {
+            setCouponCode(urlCoupon);
+            // Auto-validate
+            (async () => {
+                try {
+                    const res = await fetch("/api/coupons/validate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code: urlCoupon }),
+                    });
+                    const data = await res.json();
+                    if (data.valid) setCoupon(data.coupon);
+                } catch { /* silently fail */ }
+            })();
+        }
+    }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const discountAmount = coupon
         ? coupon.discount_type === "percentage"

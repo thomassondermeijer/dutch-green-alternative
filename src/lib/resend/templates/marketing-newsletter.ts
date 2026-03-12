@@ -1,51 +1,51 @@
 type MarketingEmailData = {
-    subject: string;
-    bodyHtml: string;
-    imageUrl?: string;
-    productName: string;
-    productSlug: string;
-    productPrice: number;
-    couponCode: string;
-    couponDiscount: number;
-    locale: string;
+  subject: string;
+  bodyHtml: string;
+  imageUrl?: string;
+  productName: string;
+  productSlug: string;
+  productPrice: number;
+  couponCode: string;
+  couponDiscount: number;
+  locale: string;
 };
 
 const labels: Record<string, Record<string, string>> = {
-    de: {
-        ourRecommendation: "Unsere Empfehlung für Sie",
-        shopNow: "Jetzt bestellen",
-        useCode: "Nutzen Sie den Code",
-        forDiscount: "für {discount}% Rabatt",
-        validLimited: "Gültig für begrenzte Zeit",
-        unsubscribe: "Abmelden",
-        privacyNotice: "Sie erhalten diese E-Mail, weil Sie Kunde bei Dutch Green Alternative sind.",
-    },
-    nl: {
-        ourRecommendation: "Onze aanbeveling voor u",
-        shopNow: "Nu bestellen",
-        useCode: "Gebruik code",
-        forDiscount: "voor {discount}% korting",
-        validLimited: "Geldig voor beperkte tijd",
-        unsubscribe: "Afmelden",
-        privacyNotice: "U ontvangt deze e-mail omdat u klant bent bij Dutch Green Alternative.",
-    },
-    en: {
-        ourRecommendation: "Our recommendation for you",
-        shopNow: "Shop now",
-        useCode: "Use code",
-        forDiscount: "for {discount}% off",
-        validLimited: "Valid for a limited time",
-        unsubscribe: "Unsubscribe",
-        privacyNotice: "You're receiving this email as a Dutch Green Alternative customer.",
-    },
+  de: {
+    ourRecommendation: "Unsere Empfehlung für Sie",
+    shopNow: "Jetzt bestellen",
+    useCode: "Nutzen Sie den Code",
+    forDiscount: "für {discount}% Rabatt",
+    validLimited: "Gültig für begrenzte Zeit",
+    unsubscribe: "Abmelden",
+    privacyNotice: "Sie erhalten diese E-Mail, weil Sie Kunde bei Dutch Green Alternative sind.",
+  },
+  nl: {
+    ourRecommendation: "Onze aanbeveling voor u",
+    shopNow: "Nu bestellen",
+    useCode: "Gebruik code",
+    forDiscount: "voor {discount}% korting",
+    validLimited: "Geldig voor beperkte tijd",
+    unsubscribe: "Afmelden",
+    privacyNotice: "U ontvangt deze e-mail omdat u klant bent bij Dutch Green Alternative.",
+  },
+  en: {
+    ourRecommendation: "Our recommendation for you",
+    shopNow: "Shop now",
+    useCode: "Use code",
+    forDiscount: "for {discount}% off",
+    validLimited: "Valid for a limited time",
+    unsubscribe: "Unsubscribe",
+    privacyNotice: "You're receiving this email as a Dutch Green Alternative customer.",
+  },
 };
 
 export function buildMarketingNewsletterEmail(data: MarketingEmailData): string {
-    const t = labels[data.locale] || labels.de;
-    const shopUrl = `https://dutchgreenalternative.com/${data.locale}/product/${data.productSlug}`;
-    const unsubUrl = `https://dutchgreenalternative.com/unsubscribe`;
+  const t = labels[data.locale] || labels.de;
+  const shopUrl = `https://dutchgreenalternative.com/${data.locale}/product/${data.productSlug}?coupon=${data.couponCode}`;
+  const unsubUrl = `https://dutchgreenalternative.com/unsubscribe`;
 
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
