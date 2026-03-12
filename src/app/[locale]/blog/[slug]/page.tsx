@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { blogPostJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import styles from "./article.module.css";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -90,7 +91,18 @@ export async function generateMetadata({
         openGraph: {
             title: t.title,
             description: t.excerpt,
+            type: "article",
+            publishedTime: post.published_at,
+            modifiedTime: post.updated_at || post.published_at,
             images: post.featured_image ? [post.featured_image] : [],
+        },
+        alternates: {
+            canonical: `/${locale}/blog/${slug}`,
+            languages: {
+                de: `/de/blog/${slug}`,
+                nl: `/nl/blog/${slug}`,
+                en: `/en/blog/${slug}`,
+            },
         },
     };
 }
@@ -131,8 +143,35 @@ export default async function BlogArticlePage({
     const sourcesLabel: Record<string, string> = { de: "Quellen", en: "Sources", nl: "Bronnen" };
     const relatedLabel: Record<string, string> = { de: "Weitere Artikel", en: "More Articles", nl: "Meer Artikelen" };
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://dutchgreenalternative.nl";
+
+    const articleSchema = blogPostJsonLd({
+        title: t.title,
+        excerpt: t.excerpt || "",
+        slug,
+        locale,
+        publishedAt: post.published_at,
+        updatedAt: post.updated_at,
+        image: post.featured_image,
+        readingTime: readTime,
+    });
+
+    const breadcrumb = breadcrumbJsonLd([
+        { name: "Home", url: `${siteUrl}/${locale}` },
+        { name: "Blog", url: `${siteUrl}/${locale}/blog` },
+        { name: t.title, url: `${siteUrl}/${locale}/blog/${slug}` },
+    ]);
+
     return (
         <main className={styles.articlePage}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
+            />
             <Container>
                 <Link href={`/${locale}/blog`} className={styles.backLink}>
                     ← {dict.blog.backToBlog || "Back to Blog"}

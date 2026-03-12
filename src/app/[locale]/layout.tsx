@@ -69,6 +69,8 @@ export async function generateMetadata({
     };
 }
 
+import { organizationJsonLd } from "@/lib/seo/json-ld";
+
 export default async function LocaleLayout({
     children,
     params,
@@ -82,6 +84,10 @@ export default async function LocaleLayout({
 
     return (
         <div className={`${outfit.variable} ${inter.variable}`}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
+            />
             <ClientProviders locale={locale} dict={dict}>
                 <AnnouncementBar dict={dict} />
                 <Header locale={locale} dict={dict} />

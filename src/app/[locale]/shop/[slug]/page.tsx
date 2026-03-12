@@ -4,6 +4,7 @@ import { getDictionary } from "@/i18n/get-dictionary";
 import { Container } from "@/components/ui/Container/Container";
 import { ProductCard } from "@/components/shared/ProductCard/ProductCard";
 import { ProductDetail } from "./_components/ProductDetail";
+import { productJsonLd, faqJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import styles from "./product.module.css";
 
 type Product = {
@@ -112,6 +113,14 @@ export async function generateMetadata({
             description: t.short_description,
             images: product.image_urls?.[0] ? [product.image_urls[0]] : [],
         },
+        alternates: {
+            canonical: `/${locale}/shop/${slug}`,
+            languages: {
+                de: `/de/shop/${slug}`,
+                nl: `/nl/shop/${slug}`,
+                en: `/en/shop/${slug}`,
+            },
+        },
     };
 }
 
@@ -146,8 +155,44 @@ export default async function ProductPage({
         .filter((p) => p.category === product.category && p.id !== product.id)
         .slice(0, 4);
 
+    const t = product.translations[locale] || product.translations["de"];
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://dutchgreenalternative.nl";
+
+    const productSchema = productJsonLd({
+        name: t.name,
+        description: t.short_description,
+        price: product.price,
+        image: product.image_urls?.[0],
+        slug: product.slug,
+        locale,
+        inStock: product.stock > 0,
+        sku: (product as Record<string, unknown>).sku as string | undefined,
+    });
+
+    const faqSchema = t.faqs ? faqJsonLd(t.faqs) : null;
+
+    const breadcrumb = breadcrumbJsonLd([
+        { name: "Home", url: `${siteUrl}/${locale}` },
+        { name: "Shop", url: `${siteUrl}/${locale}/shop` },
+        { name: t.name, url: `${siteUrl}/${locale}/shop/${slug}` },
+    ]);
+
     return (
         <main className={styles.page}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+            />
+            {faqSchema && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+                />
+            )}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
+            />
             <Container>
                 <ProductDetail product={product} locale={locale} dict={dict} />
 
