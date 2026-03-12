@@ -45,10 +45,9 @@ function getSeasonalCoupon(): { code: string; discount: number; reason: string }
 }
 
 // ═══ STEP 1: Scrape BudMed Bulletin ═══
-// Beehiiv archive is JS-rendered + Cloudflare-protected, but individual posts work
-// with a browser User-Agent. We scan issue numbers to find the latest.
-const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-const KNOWN_LATEST_ISSUE = 78; // Update as needed, will auto-scan upward
+// Uses Jina Reader API (r.jina.ai) — free, no auth, renders JS, bypasses Cloudflare.
+// Step A: Fetch archive via Jina to find latest issue URL
+// Step B: Fetch that post via Jina for clean markdown content
 
 async function scrapeBudMed(): Promise<{ title: string; content: string; url: string }> {
     // Check last fetched issue from DB to avoid re-sending
@@ -59,64 +58,55 @@ async function scrapeBudMed(): Promise<{ title: string; content: string; url: st
         .limit(1)
         .maybeSingle();
 
-    const lastIssueSlugs = lastCampaign?.source_url || "";
+    const lastIssueUrl = lastCampaign?.source_url || "";
 
-    // Try to find the newest issue by scanning UP from known latest
-    let issueNum = KNOWN_LATEST_ISSUE + 5; // Start a few ahead
-    let issueUrl = "";
-    let issueHtml = "";
+    // Step A: Get archive page via Jina Reader to find latest issue URL
+    const archiveRes = await fetch("https://r.jina.ai/https://budmedbulletin.beehiiv.com/archive", {
+        headers: { "Accept": "text/plain" },
+    });
 
-    // Scan downward to find the highest existing issue
-    for (let i = issueNum; i >= KNOWN_LATEST_ISSUE; i--) {
-        // BudMed uses "issue-XX-" prefix in their slugs
-        const testUrl = `https://budmedbulletin.beehiiv.com/p/issue-${i}`;
-        const res = await fetch(testUrl, {
-            headers: { "User-Agent": BROWSER_UA, "Accept": "text/html" },
-            redirect: "follow",
-        });
+    if (!archiveRes.ok) {
+        throw new Error(`Jina Reader archive error: ${archiveRes.status}`);
+    }
 
-        // Beehiiv redirects to full slug if prefix matches
-        if (res.ok && res.url.includes(`/p/issue-${i}`)) {
-            const html = await res.text();
-            // Verify it's actual content (not a Cloudflare challenge)
-            if (html.length > 10000 && html.includes("<title>")) {
-                // Skip if we already processed this URL
-                if (lastIssueSlugs && res.url === lastIssueSlugs) {
-                    // Same issue — try a lower one instead of reusing
-                    continue;
-                }
-                issueUrl = res.url;
-                issueHtml = html;
-                break;
-            }
+    const archiveText = await archiveRes.text();
+
+    // Extract all issue URLs from the archive markdown
+    const issueUrls = [...archiveText.matchAll(/https:\/\/budmedbulletin\.beehiiv\.com\/p\/(issue-\d+[^)\s]*)/g)]
+        .map(m => `https://budmedbulletin.beehiiv.com/p/${m[1]}`);
+
+    if (issueUrls.length === 0) {
+        throw new Error("No BudMed issues found in archive");
+    }
+
+    // Find the first issue we haven't processed yet
+    let targetUrl = issueUrls[0]; // Default to latest
+    for (const url of issueUrls) {
+        if (url !== lastIssueUrl) {
+            targetUrl = url;
+            break;
         }
     }
 
-    if (!issueUrl || !issueHtml) {
-        throw new Error("Could not find any new BudMed issue");
+    // Step B: Fetch the full post via Jina Reader
+    const postRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
+        headers: { "Accept": "text/plain" },
+    });
+
+    if (!postRes.ok) {
+        throw new Error(`Jina Reader post error: ${postRes.status}`);
     }
 
-    // Extract title
-    const titleMatch = issueHtml.match(/<title>([^<]+)<\/title>/);
-    const title = titleMatch ? titleMatch[1].split("|")[0].trim() : "BudMed Bulletin";
+    const postText = await postRes.text();
 
-    // Strip HTML to get text content
-    let content = issueHtml
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 8000);
+    // Extract title from first line or markdown heading
+    const titleMatch = postText.match(/^#\s+(.+)$/m) || postText.match(/Title:\s*(.+)/);
+    const title = titleMatch ? titleMatch[1].trim() : "BudMed Bulletin";
 
-    return { title, content, url: issueUrl };
+    // Trim content to 8000 chars for token efficiency
+    const content = postText.slice(0, 8000);
+
+    return { title, content, url: targetUrl };
 }
 
 // ═══ STEP 2: Claude Sonnet 4.6 Rewrite ═══
