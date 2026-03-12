@@ -11,6 +11,8 @@ type Article = {
     id: string; url: string; title: string; has_cancer_content: boolean; scraped_at: string;
 };
 
+type SubjectOption = { de: string; nl: string; en: string; angle: string };
+
 type Campaign = {
     id: string; source_url: string; source_title: string;
     subject_de: string; subject_nl: string; subject_en: string;
@@ -22,6 +24,7 @@ type Campaign = {
     sent_at: string | null; sent_count: number; failed_count: number;
     send_order: number | null;
     audience_filter: AudienceFilter;
+    subject_options: SubjectOption[];
     created_at: string; generation_log: Record<string, unknown>;
     article_id: string | null;
 };
@@ -662,13 +665,55 @@ export default function MarketingPage() {
                             </div>
                         )}
 
-                        {/* Subject line */}
-                        <div style={{ background: "white", borderRadius: "8px", padding: "12px 16px", marginBottom: "1rem", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-                            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>SUBJECT: </span>
-                            <span style={{ fontWeight: 700, color: "#1e293b" }}>
-                                {(selectedCampaign as unknown as Record<string, string>)[`subject_${locale}`] || selectedCampaign.subject_de}
-                            </span>
-                        </div>
+                        {/* Subject line chooser */}
+                        {selectedCampaign.subject_options && selectedCampaign.subject_options.length > 1 && (selectedCampaign.status === "draft" || selectedCampaign.status === "approved") ? (
+                            <div style={{ marginBottom: "1rem" }}>
+                                <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "8px" }}>Choose Subject Line ({locale.toUpperCase()})</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                    {selectedCampaign.subject_options.map((opt, idx) => {
+                                        const currentSubject = (selectedCampaign as unknown as Record<string, string>)[`subject_${locale}`] || selectedCampaign.subject_de;
+                                        const optSubject = (opt as unknown as Record<string, string>)[locale] || opt.de;
+                                        const isSelected = currentSubject === optSubject;
+                                        const angleEmoji = opt.angle === "research" ? "🔬" : opt.angle === "benefit" ? "💚" : "❓";
+                                        const angleLabel = opt.angle === "research" ? "Research" : opt.angle === "benefit" ? "Benefit" : "Curiosity";
+                                        return (
+                                            <button key={idx} onClick={async () => {
+                                                const updated = { ...selectedCampaign, subject_de: opt.de, subject_nl: opt.nl, subject_en: opt.en };
+                                                setSelectedCampaign(updated);
+                                                const supabase = createClient();
+                                                await supabase.from("marketing_campaigns").update({
+                                                    subject_de: opt.de, subject_nl: opt.nl, subject_en: opt.en,
+                                                }).eq("id", selectedCampaign.id);
+                                                showMsg("success", `Subject line ${idx + 1} selected!`);
+                                                loadCampaigns();
+                                            }} style={{
+                                                display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px",
+                                                borderRadius: "8px", border: isSelected ? "2px solid #2d5a3d" : "1px solid #e2e8f0",
+                                                background: isSelected ? "#f0fdf4" : "white", cursor: "pointer", textAlign: "left",
+                                                boxShadow: isSelected ? "0 2px 8px rgba(45,90,61,0.15)" : "0 1px 2px rgba(0,0,0,0.04)",
+                                                transition: "all 0.15s", fontFamily: "inherit",
+                                            }}>
+                                                <span style={{
+                                                    padding: "3px 10px", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 700,
+                                                    background: opt.angle === "research" ? "#dbeafe" : opt.angle === "benefit" ? "#dcfce7" : "#fef3c7",
+                                                    color: opt.angle === "research" ? "#1e40af" : opt.angle === "benefit" ? "#166534" : "#92400e",
+                                                    whiteSpace: "nowrap",
+                                                }}>{angleEmoji} {angleLabel}</span>
+                                                <span style={{ fontSize: "0.9rem", fontWeight: isSelected ? 700 : 500, color: "#1e293b", flex: 1 }}>{optSubject}</span>
+                                                {isSelected && <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "1.1rem" }}>✓</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ background: "white", borderRadius: "8px", padding: "12px 16px", marginBottom: "1rem", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                                <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>SUBJECT: </span>
+                                <span style={{ fontWeight: 700, color: "#1e293b" }}>
+                                    {(selectedCampaign as unknown as Record<string, string>)[`subject_${locale}`] || selectedCampaign.subject_de}
+                                </span>
+                            </div>
+                        )}
 
                         {/* Preview iframe or source */}
                         <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
