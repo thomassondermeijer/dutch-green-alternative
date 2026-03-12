@@ -77,7 +77,7 @@ export default function MarketingPage() {
 
     const [genProgress, setGenProgress] = useState("");
 
-    // ═══ Generate new campaign (Edge Function + polling) ═══
+    // ═══ Generate new campaign (Edge Function + Realtime) ═══
     const handleGenerate = async () => {
         setGenerating(true);
         setMessage(null);
@@ -90,39 +90,48 @@ export default function MarketingPage() {
             const campaignId = data.campaignId;
             setGenProgress("🔍 Scraping BudMed Bulletin...");
 
-            // Poll for completion — the Edge Function updates the campaign status
+            // Subscribe to realtime changes on this campaign
             const supabase = createClient();
-            let finished = false;
-            let attempts = 0;
-            while (!finished && attempts < 60) { // max 3 minutes
-                await new Promise(r => setTimeout(r, 3000));
-                attempts++;
+            await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    supabase.removeAllChannels();
+                    reject(new Error("Generation timed out after 3 minutes"));
+                }, 180000);
 
-                const { data: camp } = await supabase
-                    .from("marketing_campaigns")
-                    .select("status, generation_log")
-                    .eq("id", campaignId)
-                    .single();
+                const channel = supabase
+                    .channel(`campaign-${campaignId}`)
+                    .on(
+                        "postgres_changes",
+                        {
+                            event: "UPDATE",
+                            schema: "public",
+                            table: "marketing_campaigns",
+                            filter: `id=eq.${campaignId}`,
+                        },
+                        (payload) => {
+                            const camp = payload.new as Campaign;
+                            const log = (camp.generation_log || {}) as Record<string, string>;
 
-                if (!camp) break;
+                            // Update progress based on step
+                            if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
+                            else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
 
-                // Update progress based on log
-                const log = (camp.generation_log || {}) as Record<string, string>;
-                if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
-                else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
+                            if (camp.status === "draft") {
+                                clearTimeout(timeout);
+                                channel.unsubscribe();
+                                showMsg("success", "Campaign draft generated! Click it to preview.");
+                                resolve();
+                            } else if (camp.status === "failed") {
+                                clearTimeout(timeout);
+                                channel.unsubscribe();
+                                showMsg("error", log.error ? `Generation failed: ${log.error}` : "Generation failed");
+                                resolve();
+                            }
+                        }
+                    )
+                    .subscribe();
+            });
 
-                if (camp.status === "draft") {
-                    finished = true;
-                    showMsg("success", "Campaign draft generated! Click it to preview.");
-                } else if (camp.status === "failed") {
-                    finished = true;
-                    showMsg("error", log.error ? `Generation failed: ${log.error}` : "Generation failed");
-                }
-            }
-
-            if (!finished) {
-                showMsg("error", "Generation timed out — check the Campaigns tab for partial results");
-            }
             loadCampaigns();
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Generation failed");
