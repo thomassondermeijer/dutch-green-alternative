@@ -14,6 +14,7 @@ const navItems = [
     { href: "/admin/customers", label: "Customers", icon: "👥" },
     { href: "/admin/email-preview", label: "Email Hub", icon: "📧" },
     { href: "/admin/marketing", label: "Marketing", icon: "📢" },
+    { href: "/admin/reviews", label: "Reviews", icon: "⭐" },
     { href: "/admin/blog", label: "Blog", icon: "✍️" },
 ];
 

@@ -100,14 +100,20 @@ export async function GET(req: NextRequest) {
                         case "post-delivery-tips":
                             html = buildPostDeliveryTipsEmail({ customerName, productNames, locale });
                             break;
-                        case "review-request":
+                        case "review-request": {
+                            // Generate review token for this order
+                            const reviewToken = `rv_${order.id.replace(/-/g, "").slice(0, 12)}_${Date.now().toString(36)}`;
+                            // Store token on order
+                            await supabaseAdmin.from("orders").update({ review_token: reviewToken }).eq("id", order.id);
                             html = buildReviewRequestEmail({
                                 customerName,
                                 orderNumber: order.order_number,
                                 productNames,
                                 locale,
+                                reviewToken,
                             });
                             break;
+                        }
                         default:
                             continue;
                     }

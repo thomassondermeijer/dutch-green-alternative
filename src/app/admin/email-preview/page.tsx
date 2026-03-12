@@ -71,7 +71,7 @@ function buildTemplateHtml(templateId: TemplateKey, locale: string): string {
         case "reminder-2": return buildPaymentReminderEmail({ ...data, reminderStage: 2, daysPastDue: 17 });
         case "reminder-3": return buildPaymentReminderEmail({ ...data, reminderStage: 3, daysPastDue: 24 });
         case "post-delivery-tips": return buildPostDeliveryTipsEmail({ customerName: data.customerName, productNames: data.items.map(i => i.name), locale });
-        case "review-request": return buildReviewRequestEmail({ customerName: data.customerName, orderNumber: data.orderNumber, productNames: data.items.map(i => i.name), locale });
+        case "review-request": return buildReviewRequestEmail({ customerName: data.customerName, orderNumber: data.orderNumber, productNames: data.items.map(i => i.name), locale, reviewToken: "rv_sample_preview" });
     }
 }
 

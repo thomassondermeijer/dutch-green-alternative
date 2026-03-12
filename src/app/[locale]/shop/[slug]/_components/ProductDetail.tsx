@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button/Button";
 import { useCart } from "@/lib/cart/cart-context";
 import { useToast } from "@/components/shared/Toast/Toast";
+import { ProductReviews } from "@/components/product/ProductReviews/ProductReviews";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/get-dictionary";
 import styles from "../product.module.css";
@@ -327,6 +328,9 @@ export function ProductDetail({ product, locale, dict }: ProductDetailProps) {
                     </div>
                 </section>
             )}
+
+            {/* ── Section 5: Customer Reviews ── */}
+            <ProductReviews productId={product.id} locale={locale} dict={dict} />
         </>
     );
 }

@@ -1,12 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { Container } from "@/components/ui/Container/Container";
 import { useScrollReveal } from "@/lib/animations/scroll-animations";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/get-dictionary";
 import styles from "./ReviewsCarousel.module.css";
+
+type DBReview = {
+    id: string;
+    customer_name: string;
+    rating: number;
+    text: string | null;
+    image_urls: string[];
+    language: string;
+    verified_purchase: boolean;
+    product: { name: string; slug: string } | null;
+};
 
 type ReviewsCarouselProps = {
     dict: Dictionary;
@@ -109,16 +120,37 @@ export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
     const [activeIndex, setActiveIndex] = useState(0);
     const trackRef = useRef<HTMLDivElement>(null);
     const autoplayRef = useRef<NodeJS.Timeout | null>(null);
+    const [allReviews, setAllReviews] = useState(REVIEWS);
 
-    const startAutoplay = () => {
+    // Fetch DB reviews and merge with seed data
+    useEffect(() => {
+        fetch("/api/reviews/approved?limit=10")
+            .then(r => r.json())
+            .then(data => {
+                const dbReviews = (data.reviews || []).filter((r: DBReview) => r.text).map((r: DBReview) => ({
+                    text: { de: r.text!, en: r.text!, nl: r.text! },
+                    product: r.product?.name || "CBD",
+                    rating: r.rating,
+                    image: r.image_urls?.[0] || "/reviews/review-1.jpg",
+                    name: r.customer_name,
+                    verified: true,
+                }));
+                if (dbReviews.length > 0) {
+                    setAllReviews([...dbReviews, ...REVIEWS]);
+                }
+            })
+            .catch(() => { });
+    }, []);
+
+    const startAutoplay = useCallback(() => {
         autoplayRef.current = setInterval(() => {
-            setActiveIndex((prev) => (prev + 1) % REVIEWS.length);
+            setActiveIndex((prev) => (prev + 1) % allReviews.length);
         }, 5000);
-    };
+    }, [allReviews.length]);
 
-    const stopAutoplay = () => {
+    const stopAutoplay = useCallback(() => {
         if (autoplayRef.current) clearInterval(autoplayRef.current);
-    };
+    }, []);
 
     useEffect(() => {
         if (isVisible) startAutoplay();
@@ -131,8 +163,8 @@ export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
         startAutoplay();
     };
 
-    const prev = () => goTo((activeIndex - 1 + REVIEWS.length) % REVIEWS.length);
-    const next = () => goTo((activeIndex + 1) % REVIEWS.length);
+    const prev = () => goTo((activeIndex - 1 + allReviews.length) % allReviews.length);
+    const next = () => goTo((activeIndex + 1) % allReviews.length);
 
     const renderStars = (count: number) => (
         <div className={styles.stars}>
@@ -167,7 +199,7 @@ export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
                     </button>
 
                     <div className={styles.track} ref={trackRef}>
-                        {REVIEWS.map((review, i) => {
+                        {allReviews.map((review, i) => {
                             const offset = i - activeIndex;
                             const isActive = i === activeIndex;
                             return (
@@ -197,6 +229,9 @@ export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
                                             <div className={styles.reviewFooter}>
                                                 <span className={styles.reviewName}>{review.name}</span>
                                                 <span className={styles.reviewProduct}>— {review.product}</span>
+                                                {Boolean((review as Record<string, unknown>).verified) && (
+                                                    <span className={styles.verifiedBadge}>✓</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -214,7 +249,7 @@ export function ReviewsCarousel({ dict, locale }: ReviewsCarouselProps) {
 
                 {/* Dots */}
                 <div className={styles.dots}>
-                    {REVIEWS.map((_, i) => (
+                    {allReviews.map((_, i) => (
                         <button
                             key={i}
                             className={`${styles.dot} ${i === activeIndex ? styles.dotActive : ""}`}

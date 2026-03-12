@@ -1,70 +1,71 @@
 type ReviewRequestData = {
-    customerName: string;
-    orderNumber: string;
-    productNames: string[];
-    locale: string;
+  customerName: string;
+  orderNumber: string;
+  productNames: string[];
+  locale: string;
+  reviewToken: string;
 };
 
 const labels: Record<string, Record<string, string>> = {
-    de: {
-        heading: "Wie gefällt Ihnen Ihr CBD-Öl?",
-        greeting: "Hallo",
-        intro: "Es sind nun zwei Wochen vergangen, seit Sie Ihre Bestellung erhalten haben. Wir würden gerne wissen, wie es Ihnen mit unseren Produkten geht!",
-        orderRef: "Bestellung",
-        yourProducts: "Ihre Produkte",
-        why: "Warum Ihre Bewertung wichtig ist",
-        reason1: "⭐ Hilft anderen Kunden bei ihrer Entscheidung",
-        reason2: "📊 Hilft uns, unsere Produkte zu verbessern",
-        reason3: "🎁 Ihr Feedback ist uns sehr wertvoll",
-        ctaTitle: "Teilen Sie Ihre Erfahrung",
-        ctaBody: "Erzählen Sie uns, wie die Produkte bei Ihnen wirken — ob Schlaf, Schmerzen, Entspannung oder allgemeines Wohlbefinden.",
-        ctaBtn: "Bewertung schreiben",
-        altText: "Oder antworten Sie einfach auf diese E-Mail — wir freuen uns über jede Rückmeldung!",
-        footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
-    },
-    nl: {
-        heading: "Hoe bevalt uw CBD-olie?",
-        greeting: "Hallo",
-        intro: "Het is nu twee weken geleden dat u uw bestelling heeft ontvangen. We horen graag hoe het gaat met onze producten!",
-        orderRef: "Bestelling",
-        yourProducts: "Uw producten",
-        why: "Waarom uw beoordeling belangrijk is",
-        reason1: "⭐ Helpt andere klanten bij hun keuze",
-        reason2: "📊 Helpt ons onze producten te verbeteren",
-        reason3: "🎁 Uw feedback is erg waardevol voor ons",
-        ctaTitle: "Deel uw ervaring",
-        ctaBody: "Vertel ons hoe de producten voor u werken — of het nu gaat om slaap, pijn, ontspanning of algemeen welzijn.",
-        ctaBtn: "Beoordeling schrijven",
-        altText: "Of beantwoord deze e-mail — we waarderen elke reactie!",
-        footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
-    },
-    en: {
-        heading: "How are you finding your CBD oil?",
-        greeting: "Hello",
-        intro: "It's been two weeks since you received your order. We'd love to hear how our products are working for you!",
-        orderRef: "Order",
-        yourProducts: "Your products",
-        why: "Why your review matters",
-        reason1: "⭐ Helps other customers make their choice",
-        reason2: "📊 Helps us improve our products",
-        reason3: "🎁 Your feedback is incredibly valuable to us",
-        ctaTitle: "Share your experience",
-        ctaBody: "Tell us how the products are working for you — whether it's sleep, pain, relaxation, or general wellness.",
-        ctaBtn: "Write a review",
-        altText: "Or simply reply to this email — we appreciate any feedback!",
-        footer: "For questions, contact us at info@dutchgreenalternative.nl",
-    },
+  de: {
+    heading: "Wie gefällt Ihnen Ihr CBD-Öl?",
+    greeting: "Hallo",
+    intro: "Es sind nun zwei Wochen vergangen, seit Sie Ihre Bestellung erhalten haben. Wir würden gerne wissen, wie es Ihnen mit unseren Produkten geht!",
+    orderRef: "Bestellung",
+    yourProducts: "Ihre Produkte",
+    why: "Warum Ihre Bewertung wichtig ist",
+    reason1: "⭐ Hilft anderen Kunden bei ihrer Entscheidung",
+    reason2: "📊 Hilft uns, unsere Produkte zu verbessern",
+    reason3: "🎁 40% Rabatt-Gutschein als Dankeschön (mit Foto)",
+    ctaTitle: "Teilen Sie Ihre Erfahrung",
+    ctaBody: "Erzählen Sie uns, wie die Produkte bei Ihnen wirken — ob Schlaf, Schmerzen, Entspannung oder allgemeines Wohlbefinden.",
+    ctaBtn: "Bewertung schreiben",
+    altText: "Oder antworten Sie einfach auf diese E-Mail — wir freuen uns über jede Rückmeldung!",
+    footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
+  },
+  nl: {
+    heading: "Hoe bevalt uw CBD-olie?",
+    greeting: "Hallo",
+    intro: "Het is nu twee weken geleden dat u uw bestelling heeft ontvangen. We horen graag hoe het gaat met onze producten!",
+    orderRef: "Bestelling",
+    yourProducts: "Uw producten",
+    why: "Waarom uw beoordeling belangrijk is",
+    reason1: "⭐ Helpt andere klanten bij hun keuze",
+    reason2: "📊 Helpt ons onze producten te verbeteren",
+    reason3: "🎁 40% kortingsvoucher als dank (met foto)",
+    ctaTitle: "Deel uw ervaring",
+    ctaBody: "Vertel ons hoe de producten voor u werken — of het nu gaat om slaap, pijn, ontspanning of algemeen welzijn.",
+    ctaBtn: "Beoordeling schrijven",
+    altText: "Of beantwoord deze e-mail — we waarderen elke reactie!",
+    footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
+  },
+  en: {
+    heading: "How are you finding your CBD oil?",
+    greeting: "Hello",
+    intro: "It's been two weeks since you received your order. We'd love to hear how our products are working for you!",
+    orderRef: "Order",
+    yourProducts: "Your products",
+    why: "Why your review matters",
+    reason1: "⭐ Helps other customers make their choice",
+    reason2: "📊 Helps us improve our products",
+    reason3: "🎁 40% discount coupon as a thank you (with photo)",
+    ctaTitle: "Share your experience",
+    ctaBody: "Tell us how the products are working for you — whether it's sleep, pain, relaxation, or general wellness.",
+    ctaBtn: "Write a review",
+    altText: "Or simply reply to this email — we appreciate any feedback!",
+    footer: "For questions, contact us at info@dutchgreenalternative.nl",
+  },
 };
 
 export function buildReviewRequestEmail(data: ReviewRequestData): string {
-    const t = labels[data.locale] || labels.de;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://dutchgreenalternative.nl";
+  const t = labels[data.locale] || labels.de;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://dutchgreenalternative.nl";
 
-    const productList = data.productNames
-        .map((name) => `<li style="padding: 4px 0; color: #374151;">${name}</li>`)
-        .join("");
+  const productList = data.productNames
+    .map((name) => `<li style="padding: 4px 0; color: #374151;">${name}</li>`)
+    .join("");
 
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -106,7 +107,7 @@ export function buildReviewRequestEmail(data: ReviewRequestData): string {
             <div style="background-color: #f9fafb; border-radius: 10px; padding: 24px; text-align: center;">
               <p style="margin: 0 0 8px; font-weight: 600; color: #1a1a1a; font-size: 16px; font-family: 'Outfit', sans-serif;">${t.ctaTitle}</p>
               <p style="margin: 0 0 16px; color: #6b7280; font-size: 14px;">${t.ctaBody}</p>
-              <a href="mailto:info@dutchgreenalternative.nl?subject=Review%20${encodeURIComponent(data.orderNumber)}" style="display: inline-block; padding: 14px 40px; background-color: #2d5a3d; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${t.ctaBtn}</a>
+              <a href="${siteUrl}/${data.locale}/review?token=${data.reviewToken}" style="display: inline-block; padding: 14px 40px; background-color: #2d5a3d; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">${t.ctaBtn}</a>
               <p style="margin: 16px 0 0; color: #9ca3af; font-size: 13px; font-style: italic;">${t.altText}</p>
             </div>
           </td>

@@ -133,6 +133,15 @@
     color: var(--color-primary);
 }
 
+.verifiedBadge {
+    font-size: 11px;
+    background: #d1fae5;
+    color: #065f46;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-semibold);
+}
+
 /* ═══ Arrows ═══ */
 .arrow {
     position: absolute;
