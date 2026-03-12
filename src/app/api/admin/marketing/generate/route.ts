@@ -125,9 +125,9 @@ export async function POST(req: NextRequest) {
             const { data: campaign, error } = await supabaseAdmin.from("marketing_campaigns").insert({
                 source_url: targetUrl, source_title: title,
                 subject_de: "Generating...", subject_nl: "Generating...", subject_en: "Generating...",
-                body_html_de: "", body_html_nl: "", body_html_en: "",
-                image_url: "", image_prompt: "",
-                recommended_product_slug: "",
+                body_html_de: null, body_html_nl: null, body_html_en: null,
+                image_url: null, image_prompt: null,
+                recommended_product_slug: null,
                 coupon_code: coupon.code, coupon_discount: coupon.discount,
                 status: "generating",
                 generation_log: { source_content: content, coupon, step: 1 },
