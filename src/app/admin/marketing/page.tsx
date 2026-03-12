@@ -77,46 +77,56 @@ export default function MarketingPage() {
 
     const [genProgress, setGenProgress] = useState("");
 
-    // ═══ Generate new campaign (3-step pipeline) ═══
+    // ═══ Generate new campaign (Edge Function + polling) ═══
     const handleGenerate = async () => {
         setGenerating(true);
         setMessage(null);
         try {
-            // Step 1: Scrape + coupon
-            setGenProgress("Step 1/3: Scraping BudMed...");
-            const res1 = await fetch("/api/admin/marketing/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ step: 1 }),
-            });
-            const data1 = await res1.json();
-            if (!res1.ok) throw new Error(data1.error || "Step 1 failed");
+            setGenProgress("Starting generation...");
+            const res = await fetch("/api/admin/marketing/generate", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to start generation");
 
-            // Step 2: Claude AI rewrite
-            setGenProgress("Step 2/3: AI writing email...");
-            const res2 = await fetch("/api/admin/marketing/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ step: 2, campaignId: data1.campaignId }),
-            });
-            const data2 = await res2.json();
-            if (!res2.ok) throw new Error(data2.error || "Step 2 failed");
+            const campaignId = data.campaignId;
+            setGenProgress("🔍 Scraping BudMed Bulletin...");
 
-            // Step 3: Gemini image
-            setGenProgress("Step 3/3: Generating image...");
-            const res3 = await fetch("/api/admin/marketing/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ step: 3, campaignId: data1.campaignId }),
-            });
-            const data3 = await res3.json();
-            if (!res3.ok) throw new Error(data3.error || "Step 3 failed");
+            // Poll for completion — the Edge Function updates the campaign status
+            const supabase = createClient();
+            let finished = false;
+            let attempts = 0;
+            while (!finished && attempts < 60) { // max 3 minutes
+                await new Promise(r => setTimeout(r, 3000));
+                attempts++;
 
-            showMsg("success", "Campaign draft generated! Click it to preview.");
+                const { data: camp } = await supabase
+                    .from("marketing_campaigns")
+                    .select("status, generation_log")
+                    .eq("id", campaignId)
+                    .single();
+
+                if (!camp) break;
+
+                // Update progress based on log
+                const log = (camp.generation_log || {}) as Record<string, string>;
+                if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
+                else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
+
+                if (camp.status === "draft") {
+                    finished = true;
+                    showMsg("success", "Campaign draft generated! Click it to preview.");
+                } else if (camp.status === "failed") {
+                    finished = true;
+                    showMsg("error", log.error ? `Generation failed: ${log.error}` : "Generation failed");
+                }
+            }
+
+            if (!finished) {
+                showMsg("error", "Generation timed out — check the Campaigns tab for partial results");
+            }
             loadCampaigns();
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Generation failed");
-            loadCampaigns(); // Refresh to show partial results
+            loadCampaigns();
         }
         setGenerating(false);
         setGenProgress("");
