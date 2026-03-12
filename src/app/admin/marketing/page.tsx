@@ -25,7 +25,7 @@ type Campaign = {
     body_html_de: string; body_html_nl: string; body_html_en: string;
     image_url: string; image_prompt: string;
     recommended_product_slug: string;
-    coupon_code: string; coupon_discount: number;
+    coupon_code: string; coupon_discount: number; coupon_reason: string | null;
     status: string; scheduled_for: string | null;
     sent_at: string | null; sent_count: number; failed_count: number;
     send_order: number | null;
@@ -268,6 +268,7 @@ export default function MarketingPage() {
                 scheduled_for: result.scheduled_for,
                 coupon_code: result.coupon_code,
                 coupon_discount: result.coupon_discount,
+                coupon_reason: result.coupon_reason,
             });
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Approval failed");
@@ -335,6 +336,7 @@ export default function MarketingPage() {
         let bodyHtml = ((camp[bodyKey] as string) || camp.body_html_de || "");
         bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, "Max");
         bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(camp.coupon_discount));
+        bodyHtml = bodyHtml.replace(/\{SEASONAL_EVENT\}/g, camp.coupon_reason || "");
 
         return buildMarketingNewsletterEmail({
             subject: (camp[subjectKey] as string) || camp.subject_de,

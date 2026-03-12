@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
             scheduled_for: sendDate.toISOString(),
             coupon_code: coupon.code,
             coupon_discount: coupon.discount,
+            coupon_reason: coupon.reason,
             updated_at: new Date().toISOString(),
         };
 
