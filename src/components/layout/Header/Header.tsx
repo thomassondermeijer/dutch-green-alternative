@@ -53,7 +53,10 @@ export function Header({ locale, dict }: HeaderProps) {
     const getLocalePath = (targetLocale: string) => {
         const segments = pathname.split("/");
         segments[1] = targetLocale;
-        return segments.join("/");
+        const basePath = segments.join("/");
+        // Preserve query params (e.g. ?token=xxx on review page)
+        const search = typeof window !== "undefined" ? window.location.search : "";
+        return basePath + search;
     };
 
     const handleMegaEnter = (key: string) => {
