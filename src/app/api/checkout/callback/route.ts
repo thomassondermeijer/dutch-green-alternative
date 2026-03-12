@@ -126,6 +126,65 @@ export async function POST(req: NextRequest) {
             `[CardGate Callback] Order ${order.order_number}: ${order.status} → ${newStatus} (code: ${statusCode})`
         );
 
+        // Send order-confirmation email when payment succeeds
+        if (newStatus === "paid") {
+            try {
+                // Fetch full order data
+                const fullOrderRes = await fetch(
+                    `${supabaseUrl}/rest/v1/orders?id=eq.${order.id}&select=*`,
+                    { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+                );
+                const [fullOrder] = await fullOrderRes.json();
+
+                // Fetch order items
+                const itemsRes = await fetch(
+                    `${supabaseUrl}/rest/v1/order_items?order_id=eq.${order.id}&select=product_name,quantity,unit_price`,
+                    { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+                );
+                const items = await itemsRes.json();
+
+                if (fullOrder && items) {
+                    const { buildOrderConfirmationEmail } = await import("@/lib/resend/templates/order-confirmation");
+                    const { sendEmail } = await import("@/lib/resend/client");
+
+                    const addr = fullOrder.shipping_address || {};
+                    const locale = fullOrder.language || "de";
+                    const country = addr.country || "DE";
+
+                    const html = buildOrderConfirmationEmail({
+                        orderNumber: fullOrder.order_number,
+                        customerName: addr.first_name || "Kunde",
+                        items: items.map((i: { product_name: string; quantity: number; unit_price: number }) => ({
+                            name: i.product_name, quantity: i.quantity, price: i.unit_price,
+                        })),
+                        subtotal: Number(fullOrder.subtotal),
+                        shipping: Number(fullOrder.shipping_cost || 0),
+                        discount: fullOrder.discount_amount ? Number(fullOrder.discount_amount) : undefined,
+                        total: Number(fullOrder.total),
+                        shippingAddress: `${addr.first_name || ""} ${addr.last_name || ""}\n${addr.street || ""} ${addr.house_number || ""}\n${addr.postal_code || ""} ${addr.city || ""}\n${addr.country || ""}`,
+                        locale,
+                    });
+
+                    const subjectMap: Record<string, string> = {
+                        de: `Bestellbestätigung #${fullOrder.order_number}`,
+                        nl: `Orderbevestiging #${fullOrder.order_number}`,
+                        en: `Order Confirmation #${fullOrder.order_number}`,
+                    };
+
+                    await sendEmail({
+                        to: fullOrder.customer_email,
+                        subject: subjectMap[locale] || subjectMap.de,
+                        html,
+                    });
+
+                    console.log(`[CardGate Callback] Order confirmation sent for ${fullOrder.order_number}`);
+                }
+            } catch (emailErr) {
+                console.error("[CardGate Callback] Failed to send order confirmation:", emailErr);
+                // Don't fail the callback for email errors
+            }
+        }
+
         // CURO expects a simple response
         return new Response(
             `${order.order_number}.${statusCode}`,

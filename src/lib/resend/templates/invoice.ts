@@ -16,6 +16,7 @@ type InvoiceData = {
   shippingAddress: string;
   billingAddress?: string;
   paymentDueDate: string; // formatted date string
+  country?: string; // ISO country code for shipping estimate
   locale: string;
 };
 
@@ -41,6 +42,8 @@ const labels: Record<string, Record<string, string>> = {
     reference: "Verwendungszweck",
     dueDate: "Fälligkeitsdatum",
     importantNote: "Bitte geben Sie die Rechnungsnummer als Verwendungszweck an, damit wir Ihre Zahlung zuordnen können.",
+    deliveryDE: "Voraussichtliche Lieferung: 2-4 Werktage",
+    deliveryNLBE: "Voraussichtliche Lieferung: 4-7 Werktage",
     footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
   },
   nl: {
@@ -64,6 +67,8 @@ const labels: Record<string, Record<string, string>> = {
     reference: "Betalingskenmerk",
     dueDate: "Vervaldatum",
     importantNote: "Vermeld het factuurnummer als betalingskenmerk zodat wij uw betaling kunnen verwerken.",
+    deliveryDE: "Verwachte levering: 2-4 werkdagen",
+    deliveryNLBE: "Verwachte levering: 4-7 werkdagen",
     footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
   },
   en: {
@@ -87,6 +92,8 @@ const labels: Record<string, Record<string, string>> = {
     reference: "Payment Reference",
     dueDate: "Due Date",
     importantNote: "Please include the invoice number as payment reference so we can match your payment.",
+    deliveryDE: "Estimated delivery: 2-4 business days",
+    deliveryNLBE: "Estimated delivery: 4-7 business days",
     footer: "For questions, contact us at info@dutchgreenalternative.nl",
   },
 };
@@ -199,6 +206,7 @@ export function buildInvoiceEmail(data: InvoiceData): string {
             <div style="background-color: #f0fdf4; border-radius: 8px; padding: 16px;">
               <p style="margin: 0 0 8px; font-weight: 600; color: #1a1a1a;">📦 ${t.shippingTo}</p>
               <p style="margin: 0; color: #6b7280; white-space: pre-line;">${data.shippingAddress}</p>
+              <p style="margin: 12px 0 0; color: #2d5a3d; font-weight: 500;">${data.country === "DE" ? t.deliveryDE : t.deliveryNLBE}</p>
             </div>
           </td>
         </tr>

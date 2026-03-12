@@ -383,6 +383,7 @@ export async function POST(req: NextRequest) {
                 total,
                 shippingAddress: addrStr,
                 paymentDueDate: dueDateStr,
+                country: body.country,
                 locale: body.locale,
             });
 
