@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
         }
 
-        if (campaign.status !== "draft" && campaign.status !== "generating") {
-            return NextResponse.json({ error: "Only draft/generating campaigns can be deleted" }, { status: 400 });
+        if (!["draft", "generating", "approved"].includes(campaign.status)) {
+            return NextResponse.json({ error: "Only draft/generating/approved campaigns can be deleted" }, { status: 400 });
         }
 
         // Delete associated image from storage if exists

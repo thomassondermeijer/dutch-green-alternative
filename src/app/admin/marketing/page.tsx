@@ -451,7 +451,7 @@ export default function MarketingPage() {
                                             {camp.image_url && (
                                                 <img src={camp.image_url} alt="" style={{ width: 64, height: 64, borderRadius: "8px", objectFit: "cover", marginLeft: "1rem" }} />
                                             )}
-                                            {(camp.status === "draft" || camp.status === "generating") && (
+                                            {(camp.status === "draft" || camp.status === "generating" || camp.status === "approved") && (
                                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(camp.id); }}
                                                     style={{ ...btnDanger, padding: "6px 10px", fontSize: "0.75rem", marginLeft: "0.5rem" }}>
                                                     🗑️
@@ -642,8 +642,10 @@ export default function MarketingPage() {
                                 <>
                                     <button onClick={() => handleApprove()} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>✅ Approve</button>
                                     <button onClick={() => { const d = new Date(Date.now() + 86400000); handleApprove(d.toISOString()); }} style={btnSecondary}>⏰ Schedule (tomorrow)</button>
-                                    <button onClick={() => handleDelete(selectedCampaign.id)} style={btnDanger}>🗑️ Delete Draft</button>
                                 </>
+                            )}
+                            {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved" || selectedCampaign.status === "generating") && (
+                                <button onClick={() => handleDelete(selectedCampaign.id)} style={btnDanger}>🗑️ Delete</button>
                             )}
 
                             {(selectedCampaign.status === "approved" || selectedCampaign.status === "draft") && (
