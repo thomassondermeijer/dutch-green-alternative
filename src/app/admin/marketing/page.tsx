@@ -70,7 +70,7 @@ export default function MarketingPage() {
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [locale, setLocale] = useState("de");
     const [showSource, setShowSource] = useState(false);
-    const [generating, setGenerating] = useState(false);
+    const [generatingId, setGeneratingId] = useState<string | null>(null);
     const [scraping, setScraping] = useState(false);
     const [sending, setSending] = useState(false);
     const [testEmail, setTestEmail] = useState("");
@@ -156,7 +156,7 @@ export default function MarketingPage() {
 
     // ═══ Generate campaign from article (Edge Function + Realtime) ═══
     const handleGenerate = async (articleId: string) => {
-        setGenerating(true);
+        setGeneratingId(articleId);
         setMessage(null);
         try {
             setGenProgress("Starting generation...");
@@ -207,7 +207,7 @@ export default function MarketingPage() {
             showMsg("error", err instanceof Error ? err.message : "Generation failed");
             loadCampaigns();
         }
-        setGenerating(false);
+        setGeneratingId(null);
         setGenProgress("");
     };
 
@@ -414,10 +414,10 @@ export default function MarketingPage() {
                                         </div>
                                         <button
                                             onClick={() => handleGenerate(article.id)}
-                                            disabled={generating}
-                                            style={{ ...btnPrimary, opacity: generating ? 0.5 : 1, whiteSpace: "nowrap" }}
+                                            disabled={generatingId !== null}
+                                            style={{ ...btnPrimary, opacity: generatingId !== null ? 0.5 : 1, whiteSpace: "nowrap" }}
                                         >
-                                            {generating ? genProgress || "Generating..." : "🤖 Generate Campaign"}
+                                            {generatingId === article.id ? genProgress || "Generating..." : "🤖 Generate Campaign"}
                                         </button>
                                     </div>
                                 </div>
