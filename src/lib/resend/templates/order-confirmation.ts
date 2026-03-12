@@ -1,98 +1,101 @@
 type OrderItem = {
-    name: string;
-    quantity: number;
-    price: number;
+  name: string;
+  quantity: number;
+  price: number;
 };
 
 type OrderConfirmationData = {
-    orderNumber: string;
-    customerName: string;
-    items: OrderItem[];
-    subtotal: number;
-    shipping: number;
-    discount?: number;
-    total: number;
-    shippingAddress: string;
-    locale: string;
+  orderNumber: string;
+  customerName: string;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  discount?: number;
+  total: number;
+  shippingAddress: string;
+  locale: string;
 };
 
 const labels: Record<string, Record<string, string>> = {
-    de: {
-        title: "Bestellbestätigung",
-        greeting: "Vielen Dank für Ihre Bestellung",
-        orderNumber: "Bestellnummer",
-        items: "Bestellte Produkte",
-        product: "Produkt",
-        qty: "Menge",
-        price: "Preis",
-        subtotal: "Zwischensumme",
-        shipping: "Versand",
-        discount: "Rabatt",
-        total: "Gesamt",
-        shippingTo: "Lieferadresse",
-        delivery: "Voraussichtliche Lieferung: 2-4 Werktage",
-        footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
-    },
-    nl: {
-        title: "Orderbevestiging",
-        greeting: "Bedankt voor uw bestelling",
-        orderNumber: "Bestelnummer",
-        items: "Bestelde producten",
-        product: "Product",
-        qty: "Aantal",
-        price: "Prijs",
-        subtotal: "Subtotaal",
-        shipping: "Verzending",
-        discount: "Korting",
-        total: "Totaal",
-        shippingTo: "Bezorgadres",
-        delivery: "Verwachte levering: 2-4 werkdagen",
-        footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
-    },
-    en: {
-        title: "Order Confirmation",
-        greeting: "Thank you for your order",
-        orderNumber: "Order Number",
-        items: "Ordered Products",
-        product: "Product",
-        qty: "Qty",
-        price: "Price",
-        subtotal: "Subtotal",
-        shipping: "Shipping",
-        discount: "Discount",
-        total: "Total",
-        shippingTo: "Shipping Address",
-        delivery: "Estimated delivery: 2-4 business days",
-        footer: "For questions, contact us at info@dutchgreenalternative.nl",
-    },
+  de: {
+    title: "Bestellbestätigung",
+    greeting: "Vielen Dank für Ihre Bestellung",
+    orderNumber: "Bestellnummer",
+    items: "Bestellte Produkte",
+    product: "Produkt",
+    qty: "Menge",
+    price: "Preis",
+    subtotal: "Zwischensumme",
+    shipping: "Versand",
+    discount: "Rabatt",
+    total: "Gesamt",
+    shippingTo: "Lieferadresse",
+    delivery: "Voraussichtliche Lieferung: 2-4 Werktage",
+    footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
+  },
+  nl: {
+    title: "Orderbevestiging",
+    greeting: "Bedankt voor uw bestelling",
+    orderNumber: "Bestelnummer",
+    items: "Bestelde producten",
+    product: "Product",
+    qty: "Aantal",
+    price: "Prijs",
+    subtotal: "Subtotaal",
+    shipping: "Verzending",
+    discount: "Korting",
+    total: "Totaal",
+    shippingTo: "Bezorgadres",
+    delivery: "Verwachte levering: 2-4 werkdagen",
+    footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
+  },
+  en: {
+    title: "Order Confirmation",
+    greeting: "Thank you for your order",
+    orderNumber: "Order Number",
+    items: "Ordered Products",
+    product: "Product",
+    qty: "Qty",
+    price: "Price",
+    subtotal: "Subtotal",
+    shipping: "Shipping",
+    discount: "Discount",
+    total: "Total",
+    shippingTo: "Shipping Address",
+    delivery: "Estimated delivery: 2-4 business days",
+    footer: "For questions, contact us at info@dutchgreenalternative.nl",
+  },
 };
 
 export function buildOrderConfirmationEmail(data: OrderConfirmationData): string {
-    const t = labels[data.locale] || labels.de;
+  const t = labels[data.locale] || labels.de;
 
-    const itemRows = data.items
-        .map(
-            (item) => `
+  const itemRows = data.items
+    .map(
+      (item) => `
         <tr>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">€${(item.price * item.quantity).toFixed(2)}</td>
         </tr>`
-        )
-        .join("");
+    )
+    .join("");
 
-    return `
+  return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <!-- Header -->
         <tr>
           <td style="background: linear-gradient(135deg, #2d5a3d, #4a7c59); padding: 30px 40px; text-align: center;">
-            <h1 style="margin: 0; color: #ffffff; font-size: 24px;">🌿 Dutch Green Alternative</h1>
+            <img src="https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto; margin-bottom: 8px;" />
+            <p style="margin: 8px 0 0; color: rgba(255,255,255,0.85); font-size: 14px; font-family: 'Outfit', sans-serif;">${t.title}</p>
           </td>
         </tr>
         <!-- Body -->
