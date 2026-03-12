@@ -634,8 +634,12 @@ export default function MarketingPage() {
                                                     coupon_code: selectedCampaign.coupon_code,
                                                     coupon_discount: selectedCampaign.coupon_discount,
                                                 }).eq("id", selectedCampaign.id);
+                                                // Also update the actual coupon in the coupons table
+                                                await supabase.from("coupons").update({
+                                                    discount_value: selectedCampaign.coupon_discount,
+                                                }).eq("code", selectedCampaign.coupon_code);
                                                 setSavedCoupon({ code: selectedCampaign.coupon_code, discount: selectedCampaign.coupon_discount });
-                                                showMsg("success", "Coupon updated!");
+                                                showMsg("success", "Coupon updated (campaign + checkout)!");
                                                 loadCampaigns();
                                             } catch { showMsg("error", "Save failed"); }
                                         }} style={{ ...btnPrimary, fontSize: "0.8rem", padding: "6px 14px" }}>💾 Save</button>
