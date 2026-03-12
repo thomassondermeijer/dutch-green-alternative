@@ -258,9 +258,17 @@ export default function MarketingPage() {
                 body: JSON.stringify({ campaignId: selectedCampaign.id, scheduledFor }),
             });
             if (!res.ok) throw new Error("Approval failed");
-            showMsg("success", scheduledFor ? "Campaign approved and scheduled!" : "Campaign approved!");
+            const result = await res.json();
+            const schedDate = new Date(result.scheduled_for).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+            showMsg("success", `✅ Approved! Scheduled for ${schedDate} · Coupon: ${result.coupon_code} (${result.coupon_discount}% — ${result.coupon_reason})`);
             loadCampaigns();
-            setSelectedCampaign({ ...selectedCampaign, status: "approved" });
+            setSelectedCampaign({
+                ...selectedCampaign,
+                status: "approved",
+                scheduled_for: result.scheduled_for,
+                coupon_code: result.coupon_code,
+                coupon_discount: result.coupon_discount,
+            });
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Approval failed");
         }
@@ -811,25 +819,37 @@ export default function MarketingPage() {
                             <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
                                 {selectedCampaign.status === "draft" && (
                                     <>
-                                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <button onClick={() => handleApprove()} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>
+                                            ✅ Approve & Auto-Schedule
+                                        </button>
+                                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                             <input type="datetime-local" value={scheduleDate}
                                                 onChange={(e) => setScheduleDate(e.target.value)}
-                                                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem", fontFamily: "inherit" }} />
-                                            <button onClick={() => {
-                                                const d = scheduleDate ? new Date(scheduleDate).toISOString() : new Date(Date.now() + 86400000).toISOString();
-                                                handleApprove(d);
-                                            }} style={{ ...btnPrimary, background: "linear-gradient(135deg, #1e40af, #3b82f6)" }}>
-                                                ✅ Approve & Schedule
-                                            </button>
+                                                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.8rem", fontFamily: "inherit" }} />
+                                            {scheduleDate && (
+                                                <button onClick={() => handleApprove(new Date(scheduleDate).toISOString())}
+                                                    style={{ ...btnSecondary, fontSize: "0.8rem", padding: "6px 12px" }}>
+                                                    📅 Use This Date
+                                                </button>
+                                            )}
                                         </div>
-                                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{scheduleDate ? `📅 ${new Date(scheduleDate).toLocaleString()}` : "📅 Default: tomorrow"}</span>
+                                        <span style={{ fontSize: "0.7rem", color: "#94a3b8", width: "100%" }}>
+                                            Auto-schedule picks the next available slot (15 days after latest) and assigns the matching seasonal coupon
+                                        </span>
                                     </>
                                 )}
                                 {selectedCampaign.status === "approved" && selectedCampaign.scheduled_for && (
-                                    <div style={{ background: "#dbeafe", borderRadius: "8px", padding: "8px 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
-                                            📅 Scheduled: {new Date(selectedCampaign.scheduled_for).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
-                                        </span>
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                                        <div style={{ background: "#dbeafe", borderRadius: "8px", padding: "8px 16px" }}>
+                                            <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
+                                                📅 {new Date(selectedCampaign.scheduled_for).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                                            </span>
+                                        </div>
+                                        <div style={{ background: "#f0fdf4", borderRadius: "8px", padding: "8px 16px" }}>
+                                            <span style={{ fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
+                                                🏷️ {selectedCampaign.coupon_code} ({selectedCampaign.coupon_discount}%)
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                                 {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved" || selectedCampaign.status === "generating") && (
