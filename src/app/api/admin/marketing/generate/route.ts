@@ -45,34 +45,68 @@ function getSeasonalCoupon(): { code: string; discount: number; reason: string }
 }
 
 // ═══ STEP 1: Scrape BudMed Bulletin ═══
+// Beehiiv archive is JS-rendered + Cloudflare-protected, but individual posts work
+// with a browser User-Agent. We scan issue numbers to find the latest.
+const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const KNOWN_LATEST_ISSUE = 78; // Update as needed, will auto-scan upward
+
 async function scrapeBudMed(): Promise<{ title: string; content: string; url: string }> {
-    // Fetch archive page to get latest issue URL
-    const archiveRes = await fetch("https://budmedbulletin.beehiiv.com/archive");
-    const archiveHtml = await archiveRes.text();
+    // Check last fetched issue from DB to avoid re-sending
+    const { data: lastCampaign } = await supabaseAdmin
+        .from("marketing_campaigns")
+        .select("source_url")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    // Extract latest issue URL
-    const linkMatch = archiveHtml.match(/href="(https:\/\/budmedbulletin\.beehiiv\.com\/p\/[^"]+)"/);
-    if (!linkMatch) throw new Error("Could not find latest BudMed issue");
+    const lastIssueSlugs = lastCampaign?.source_url || "";
 
-    const issueUrl = linkMatch[1];
+    // Try to find the newest issue by scanning UP from known latest
+    let issueNum = KNOWN_LATEST_ISSUE + 5; // Start a few ahead
+    let issueUrl = "";
+    let issueHtml = "";
 
-    // Fetch the actual issue
-    const issueRes = await fetch(issueUrl);
-    const issueHtml = await issueRes.text();
+    // Scan downward to find the highest existing issue
+    for (let i = issueNum; i >= KNOWN_LATEST_ISSUE; i--) {
+        // BudMed uses "issue-XX-" prefix in their slugs
+        const testUrl = `https://budmedbulletin.beehiiv.com/p/issue-${i}`;
+        const res = await fetch(testUrl, {
+            headers: { "User-Agent": BROWSER_UA, "Accept": "text/html" },
+            redirect: "follow",
+        });
+
+        // Beehiiv redirects to full slug if prefix matches
+        if (res.ok && res.url.includes(`/p/issue-${i}`)) {
+            const html = await res.text();
+            // Verify it's actual content (not a Cloudflare challenge)
+            if (html.length > 10000 && html.includes("<title>")) {
+                // Skip if we already processed this URL
+                if (lastIssueSlugs && res.url === lastIssueSlugs) {
+                    // Same issue — try a lower one instead of reusing
+                    continue;
+                }
+                issueUrl = res.url;
+                issueHtml = html;
+                break;
+            }
+        }
+    }
+
+    if (!issueUrl || !issueHtml) {
+        throw new Error("Could not find any new BudMed issue");
+    }
 
     // Extract title
     const titleMatch = issueHtml.match(/<title>([^<]+)<\/title>/);
     const title = titleMatch ? titleMatch[1].split("|")[0].trim() : "BudMed Bulletin";
 
-    // Strip HTML to get text content (simple strip)
-    const bodyMatch = issueHtml.match(/<article[^>]*>([\s\S]*?)<\/article>/) ||
-        issueHtml.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-    let content = bodyMatch ? bodyMatch[1] : issueHtml;
-
-    // Strip HTML tags for clean text
-    content = content
+    // Strip HTML to get text content
+    let content = issueHtml
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
         .replace(/<[^>]+>/g, " ")
         .replace(/&nbsp;/g, " ")
         .replace(/&amp;/g, "&")
@@ -80,7 +114,7 @@ async function scrapeBudMed(): Promise<{ title: string; content: string; url: st
         .replace(/&gt;/g, ">")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 8000); // Limit to avoid token waste
+        .slice(0, 8000);
 
     return { title, content, url: issueUrl };
 }
