@@ -6,8 +6,8 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const GOOGLE_AI_STUDIO_KEY = process.env.GOOGLE_AI_STUDIO_KEY!;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+const GOOGLE_AI_STUDIO_KEY = process.env.GOOGLE_AI_STUDIO_KEY || "";
 
 // Products for AI to recommend
 const PRODUCTS = [
@@ -146,6 +146,10 @@ OUTPUT FORMAT (respond in valid JSON only):
   "image_suggestion": "a 1-sentence description of what image would fit this email (nature/wellness theme, no text)"
 }`;
 
+    if (!OPENROUTER_API_KEY) {
+        throw new Error("OPENROUTER_API_KEY not configured. Add it to Vercel Environment Variables.");
+    }
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -160,12 +164,24 @@ OUTPUT FORMAT (respond in valid JSON only):
         }),
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`OpenRouter error: ${response.status} - ${err}`);
+        throw new Error(`OpenRouter error: ${response.status} - ${responseText.slice(0, 500)}`);
     }
 
-    const data = await response.json();
+    // Safety: check for HTML response (rate limit pages etc.)
+    if (responseText.trimStart().startsWith("<")) {
+        throw new Error(`OpenRouter returned HTML instead of JSON: ${responseText.slice(0, 200)}`);
+    }
+
+    let data;
+    try {
+        data = JSON.parse(responseText);
+    } catch {
+        throw new Error(`OpenRouter response not valid JSON: ${responseText.slice(0, 300)}`);
+    }
+
     const content = data.choices?.[0]?.message?.content || "";
 
     // Extract JSON from response (handle markdown code blocks)
