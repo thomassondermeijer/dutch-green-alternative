@@ -14,27 +14,21 @@ const labels: Record<string, Record<string, string>> = {
   de: {
     ourRecommendation: "Unsere Empfehlung für Sie",
     shopNow: "Jetzt bestellen",
-    useCode: "Nutzen Sie den Code",
-    forDiscount: "für {discount}% Rabatt",
-    validLimited: "Gültig für begrenzte Zeit",
+    discountAutoApplied: "{discount}% Rabatt wird automatisch angewendet",
     unsubscribe: "Abmelden",
     privacyNotice: "Sie erhalten diese E-Mail, weil Sie Kunde bei Dutch Green Alternative sind.",
   },
   nl: {
     ourRecommendation: "Onze aanbeveling voor u",
     shopNow: "Nu bestellen",
-    useCode: "Gebruik code",
-    forDiscount: "voor {discount}% korting",
-    validLimited: "Geldig voor beperkte tijd",
+    discountAutoApplied: "{discount}% korting wordt automatisch toegepast",
     unsubscribe: "Afmelden",
     privacyNotice: "U ontvangt deze e-mail omdat u klant bent bij Dutch Green Alternative.",
   },
   en: {
     ourRecommendation: "Our recommendation for you",
     shopNow: "Shop now",
-    useCode: "Use code",
-    forDiscount: "for {discount}% off",
-    validLimited: "Valid for a limited time",
+    discountAutoApplied: "{discount}% discount applied automatically",
     unsubscribe: "Unsubscribe",
     privacyNotice: "You're receiving this email as a Dutch Green Alternative customer.",
   },
@@ -78,9 +72,9 @@ export function buildMarketingNewsletterEmail(data: MarketingEmailData): string 
         </tr>
         ` : ""}
 
-        <!-- Product Recommendation -->
+        <!-- Product Recommendation with auto-applied discount -->
         <tr>
-          <td style="padding: 0 40px 24px;">
+          <td style="padding: 0 40px 32px;">
             <div style="background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-radius: 12px; padding: 24px; border: 1px solid #bbf7d0;">
               <p style="margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #2d5a3d; font-weight: 700; font-family: 'Outfit', sans-serif;">
                 🌿 ${t.ourRecommendation}
@@ -91,22 +85,8 @@ export function buildMarketingNewsletterEmail(data: MarketingEmailData): string 
               <a href="${shopUrl}" style="display: inline-block; background: linear-gradient(135deg, #2d5a3d, #4a7c59); color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; font-family: 'Outfit', sans-serif;">
                 ${t.shopNow} →
               </a>
-            </div>
-          </td>
-        </tr>
-
-        <!-- Coupon Code -->
-        <tr>
-          <td style="padding: 0 40px 32px;">
-            <div style="text-align: center; padding: 20px; background-color: #fefce8; border-radius: 8px; border: 2px dashed #ca8a04;">
-              <p style="margin: 0 0 8px; font-size: 13px; color: #854d0e; font-weight: 600;">
-                ${t.useCode}
-              </p>
-              <p style="margin: 0 0 8px; font-size: 28px; font-weight: 800; color: #854d0e; letter-spacing: 3px; font-family: 'Outfit', monospace;">
-                ${data.couponCode}
-              </p>
-              <p style="margin: 0; font-size: 13px; color: #a16207;">
-                ${t.forDiscount.replace("{discount}", String(data.couponDiscount))} · ${t.validLimited}
+              <p style="margin: 12px 0 0; font-size: 12px; color: #166534; font-weight: 600;">
+                ✨ ${t.discountAutoApplied.replace("{discount}", String(data.couponDiscount))}
               </p>
             </div>
           </td>
