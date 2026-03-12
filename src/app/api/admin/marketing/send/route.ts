@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
 
                 const firstName = recipient.first_name || NAME_FALLBACK[locale] || NAME_FALLBACK.de;
                 bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, firstName);
+                bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(campaign.coupon_discount));
 
                 const html = buildMarketingNewsletterEmail({
                     subject, bodyHtml,
