@@ -88,13 +88,16 @@ export async function POST(req: NextRequest) {
             review_token: token,
             verified_purchase: true,
             is_approved: false,
-            language: "de", // default, frontend can override
+            language: (formData.get("language") as string) || "de",
         });
 
         if (insertErr) {
             console.error("[Review Submit]", insertErr);
             return NextResponse.json({ error: "Failed to submit review" }, { status: 500 });
         }
+
+        // Invalidate token so it can't be reused
+        await supabaseAdmin.from("orders").update({ review_token: null }).eq("id", order.id);
 
         return NextResponse.json({ success: true });
     } catch (err) {

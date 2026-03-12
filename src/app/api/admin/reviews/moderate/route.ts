@@ -41,7 +41,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (action === "reject") {
-            await supabaseAdmin.from("reviews").update({ is_approved: false }).eq("id", reviewId);
+            await supabaseAdmin.from("reviews").update({
+                is_approved: false,
+                approved_at: new Date().toISOString(),
+            }).eq("id", reviewId);
             return NextResponse.json({ success: true, action: "rejected" });
         }
 

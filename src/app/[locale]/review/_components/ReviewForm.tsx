@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/get-dictionary";
@@ -13,6 +13,8 @@ type ReviewFormProps = {
     token: string;
 };
 
+type OrderProduct = { id: string; name: string; slug: string };
+
 const t = {
     de: {
         title: "Bewertung schreiben",
@@ -22,6 +24,9 @@ const t = {
         textPlaceholder: "Wie gefällt Ihnen das Produkt? Wofür verwenden Sie es?",
         nameLabel: "Name (öffentlich sichtbar)",
         namePlaceholder: "z.B. Klaus M.",
+        productLabel: "Welches Produkt bewerten Sie?",
+        productPlaceholder: "Produkt auswählen...",
+        productRequired: "Bitte wählen Sie ein Produkt",
         photosLabel: "Fotos hinzufügen (optional, bis zu 3)",
         photosHint: "Fotos hochladen = 40% Rabatt nach Genehmigung!",
         dragDrop: "Bilder hierher ziehen oder klicken",
@@ -44,6 +49,9 @@ const t = {
         textPlaceholder: "Hoe bevalt het product? Waarvoor gebruikt u het?",
         nameLabel: "Naam (publiek zichtbaar)",
         namePlaceholder: "bijv. Jan V.",
+        productLabel: "Welk product beoordeelt u?",
+        productPlaceholder: "Product selecteren...",
+        productRequired: "Selecteer een product",
         photosLabel: "Foto's toevoegen (optioneel, maximaal 3)",
         photosHint: "Foto's uploaden = 40% korting na goedkeuring!",
         dragDrop: "Sleep afbeeldingen hierheen of klik",
@@ -66,6 +74,9 @@ const t = {
         textPlaceholder: "How do you like the product? What do you use it for?",
         nameLabel: "Name (publicly visible)",
         namePlaceholder: "e.g. John D.",
+        productLabel: "Which product are you reviewing?",
+        productPlaceholder: "Select a product...",
+        productRequired: "Please select a product",
         photosLabel: "Add photos (optional, up to 3)",
         photosHint: "Upload photos = 40% discount after approval!",
         dragDrop: "Drag images here or click to browse",
@@ -88,12 +99,34 @@ export function ReviewForm({ locale, dict, token }: ReviewFormProps) {
     const [hoverRating, setHoverRating] = useState(0);
     const [text, setText] = useState("");
     const [customerName, setCustomerName] = useState("");
+    const [selectedProduct, setSelectedProduct] = useState("");
+    const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([]);
     const [images, setImages] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [alreadyReviewed, setAlreadyReviewed] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    // Fetch order products on mount
+    useEffect(() => {
+        if (!token) return;
+        fetch(`/api/reviews/order-products?token=${token}&locale=${locale}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.already_reviewed) {
+                    setAlreadyReviewed(true);
+                    return;
+                }
+                setOrderProducts(data.products || []);
+                // Auto-select if only one product
+                if (data.products?.length === 1) {
+                    setSelectedProduct(data.products[0].id);
+                }
+            })
+            .catch(() => { });
+    }, [token, locale]);
 
     const addImages = useCallback((files: FileList | File[]) => {
         const newFiles = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 3 - images.length);
@@ -116,6 +149,7 @@ export function ReviewForm({ locale, dict, token }: ReviewFormProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (rating === 0) { setError(labels.ratingRequired); return; }
+        if (orderProducts.length > 0 && !selectedProduct) { setError(labels.productRequired); return; }
         setLoading(true);
         setError("");
 
@@ -124,6 +158,8 @@ export function ReviewForm({ locale, dict, token }: ReviewFormProps) {
         formData.append("rating", String(rating));
         formData.append("text", text);
         formData.append("customer_name", customerName);
+        formData.append("language", locale);
+        if (selectedProduct) formData.append("product_id", selectedProduct);
         images.forEach((img, i) => formData.append(`image_${i}`, img));
 
         try {
@@ -155,6 +191,18 @@ export function ReviewForm({ locale, dict, token }: ReviewFormProps) {
         );
     }
 
+    if (alreadyReviewed) {
+        return (
+            <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>✅</div>
+                <p>{labels.errorDuplicate}</p>
+                <Button variant="primary" href={`/${locale}/shop`} style={{ marginTop: "1rem" }}>
+                    {labels.backToShop}
+                </Button>
+            </div>
+        );
+    }
+
     if (success) {
         return (
             <div className={styles.successState}>
@@ -176,6 +224,31 @@ export function ReviewForm({ locale, dict, token }: ReviewFormProps) {
 
                 <form className={styles.form} onSubmit={handleSubmit}>
                     {error && <div className={styles.error}>{error}</div>}
+
+                    {/* Product Selector */}
+                    {orderProducts.length > 1 && (
+                        <div className={styles.field}>
+                            <label className={styles.label}>{labels.productLabel} *</label>
+                            <select
+                                className={styles.input}
+                                value={selectedProduct}
+                                onChange={e => setSelectedProduct(e.target.value)}
+                                required
+                            >
+                                <option value="">{labels.productPlaceholder}</option>
+                                {orderProducts.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Single product indicator */}
+                    {orderProducts.length === 1 && (
+                        <div className={styles.productBadge}>
+                            🌿 {orderProducts[0].name}
+                        </div>
+                    )}
 
                     {/* Star Rating */}
                     <div className={styles.field}>

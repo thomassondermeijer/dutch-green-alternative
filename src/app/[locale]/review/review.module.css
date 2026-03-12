@@ -194,3 +194,14 @@
     line-height: 1.6;
     margin: 0;
 }
+
+.productBadge {
+    display: inline-block;
+    background: #f0fdf4;
+    color: #2d5a3d;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    border: 1px solid #d1fae5;
+}
