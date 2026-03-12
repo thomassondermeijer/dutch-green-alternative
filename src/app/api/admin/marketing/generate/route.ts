@@ -21,27 +21,49 @@ const PRODUCTS = [
     { slug: "body-harmony-8", name: "Body Harmony", price: 44.95, keywords: ["pain", "body", "muscles", "joints", "physical", "inflammation"] },
 ];
 
-// Seasonal coupon logic
+// Forward-looking coupon logic — finds the NEXT upcoming holiday/celebration
 function getSeasonalCoupon(): { code: string; discount: number; reason: string } {
     const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
+    const year = now.getFullYear();
+    const yr = year.toString().slice(-2);
 
-    // Holiday-specific
-    if (month === 12 && day >= 1 && day <= 31) return { code: "KERST" + now.getFullYear().toString().slice(-2), discount: 15, reason: "Christmas" };
-    if (month === 1 && day <= 15) return { code: "NEWYEAR" + now.getFullYear().toString().slice(-2), discount: 12, reason: "New Year" };
-    if (month === 2 && day >= 10 && day <= 14) return { code: "VALENTINE" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Valentine's Day" };
-    if (month === 4 && day >= 1 && day <= 21) return { code: "OSTERN" + now.getFullYear().toString().slice(-2), discount: 12, reason: "Easter" };
-    if (month === 4 && day >= 22 && day <= 30) return { code: "KONINGSDAG" + now.getFullYear().toString().slice(-2), discount: 10, reason: "King's Day" };
-    if (month === 5 && day >= 1 && day <= 12) return { code: "MUTTERTAG" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Mother's Day" };
-    if (month === 6 && day >= 15 && day <= 21) return { code: "VATERTAG" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Father's Day" };
-    if (month === 11 && day >= 20 && day <= 30) return { code: "BLACKFRIDAY" + now.getFullYear().toString().slice(-2), discount: 20, reason: "Black Friday" };
+    // Easter calculation (Anonymous Gregorian algorithm)
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const easterMonth = Math.floor((h + l - 7 * m + 114) / 31);
+    const easterDay = ((h + l - 7 * m + 114) % 31) + 1;
+    const easter = new Date(year, easterMonth - 1, easterDay);
 
-    // Seasonal
-    if (month >= 3 && month <= 5) return { code: "SPRING" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Spring" };
-    if (month >= 6 && month <= 8) return { code: "SUMMER" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Summer" };
-    if (month >= 9 && month <= 11) return { code: "HERBST" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Autumn" };
-    return { code: "WINTER" + now.getFullYear().toString().slice(-2), discount: 10, reason: "Winter" };
+    // Calendar of events (month is 0-indexed for Date constructor)
+    const events: { date: Date; code: string; discount: number; reason: string }[] = [
+        { date: new Date(year, 0, 1), code: "NEWYEAR" + yr, discount: 12, reason: "New Year" },
+        { date: new Date(year, 1, 14), code: "VALENTINE" + yr, discount: 10, reason: "Valentine's Day" },
+        { date: new Date(year, 2, 20), code: "SLEEPDAY" + yr, discount: 10, reason: "World Sleep Day" },
+        { date: new Date(year, 2, 21), code: "SPRING" + yr, discount: 10, reason: "Spring Equinox" },
+        { date: new Date(year, 3, 7), code: "HEALTHDAY" + yr, discount: 10, reason: "World Health Day" },
+        { date: easter, code: "OSTERN" + yr, discount: 12, reason: "Easter" },
+        { date: new Date(year, 3, 27), code: "KONINGSDAG" + yr, discount: 10, reason: "King's Day" },
+        { date: new Date(year, 4, 11), code: "MUTTERTAG" + yr, discount: 10, reason: "Mother's Day" },
+        { date: new Date(year, 5, 15), code: "VATERTAG" + yr, discount: 10, reason: "Father's Day" },
+        { date: new Date(year, 5, 21), code: "SUMMER" + yr, discount: 10, reason: "Summer Solstice" },
+        { date: new Date(year, 8, 21), code: "WELLNESS" + yr, discount: 10, reason: "World Gratitude Day" },
+        { date: new Date(year, 8, 23), code: "HERBST" + yr, discount: 10, reason: "Autumn Equinox" },
+        { date: new Date(year, 9, 10), code: "MENTALHEALTH" + yr, discount: 10, reason: "World Mental Health Day" },
+        { date: new Date(year, 10, 28), code: "BLACKFRIDAY" + yr, discount: 20, reason: "Black Friday" },
+        { date: new Date(year, 11, 21), code: "WINTER" + yr, discount: 10, reason: "Winter Solstice" },
+        { date: new Date(year, 11, 25), code: "KERST" + yr, discount: 15, reason: "Christmas" },
+        // Next year's events (for late December)
+        { date: new Date(year + 1, 0, 1), code: "NEWYEAR" + (Number(yr) + 1), discount: 12, reason: "New Year" },
+    ];
+
+    // Sort by date and find the next upcoming event (within 21 days)
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const upcoming = events.find(e => e.date.getTime() >= now.getTime() - 86400000); // allow 1 day past
+    return upcoming || events[0];
 }
 
 // ═══ STEP 1: Scrape BudMed Bulletin ═══
@@ -114,6 +136,7 @@ async function aiRewrite(sourceContent: string, sourceTitle: string, coupon: { c
     const productList = PRODUCTS.map(p => `- ${p.slug}: ${p.name} (€${p.price}) — good for: ${p.keywords.join(", ")}`).join("\n");
 
     const prompt = `You are the content writer for Dutch Green Alternative (DGA), a premium European CBD oil brand.
+Your audience is 50+ year old health-conscious Europeans interested in natural wellness and CBD research.
 
 TASK: Rewrite the following medical cannabis research newsletter into a DGA marketing email.
 
@@ -124,30 +147,33 @@ ${sourceContent}
 PRODUCTS AVAILABLE:
 ${productList}
 
-SEASONAL CONTEXT: It's ${coupon.reason} season, coupon code "${coupon.code}" gives ${coupon.discount}% off.
+SEASONAL CONTEXT: The upcoming ${coupon.reason} is approaching! Coupon code "${coupon.code}" gives ${coupon.discount}% off.
 
 INSTRUCTIONS:
-1. Pick 1-2 of the most interesting studies from the source that relate to CBD/CBG benefits
-2. Rewrite them in DGA's voice: professional but warm, science-backed but accessible, European
-3. DO NOT make medical claims — use phrases like "research suggests", "studies show", "may support"
-4. Recommend ONE product that best matches the topic
-5. Naturally weave in the coupon code
-6. Keep it concise — 200-300 words max per language
+1. Pick the 2 most IMPACTFUL studies from the source that would resonate with a 50+ audience (pain relief, sleep, brain health, cancer research, inflammation)
+2. Each study gets its own <h2> heading + 3-4 sentences explaining the findings
+3. CITE THE SOURCE for authority: include the journal name or institution with a link, e.g. <a href="URL">Published in Journal of Oncology</a>
+4. Write in DGA's voice: professional but warm, science-backed but accessible, European
+5. DO NOT make medical claims — use phrases like "research suggests", "studies indicate", "may support"
+6. Recommend ONE product that best matches the combined topics
+7. Naturally weave in the coupon code and the upcoming ${coupon.reason}
+8. Target length: 400-500 words per language — substantive but readable
+9. End with a warm sign-off mentioning DGA
 
 OUTPUT FORMAT (respond in valid JSON only):
 {
-  "subject_de": "German email subject line (max 60 chars, engaging)",
-  "subject_nl": "Dutch email subject line",
-  "subject_en": "English email subject line",
-  "body_de": "German body text in HTML (use <h2>, <p>, <strong>, <em> tags only)",
-  "body_nl": "Dutch body text in HTML",
-  "body_en": "English body text in HTML",
+  "subject_de": "German email subject line (max 60 chars, engaging, use emoji)",
+  "subject_nl": "Dutch email subject line (max 60 chars, engaging, use emoji)",
+  "subject_en": "English email subject line (max 60 chars, engaging, use emoji)",
+  "body_de": "German body in HTML (<h2>, <p>, <strong>, <em>, <a href> tags). Include source citations as links.",
+  "body_nl": "Dutch body in HTML. Include source citations as links.",
+  "body_en": "English body in HTML. Include source citations as links.",
   "recommended_product": "one of the product slugs from the list above",
-  "image_suggestion": "a 1-sentence description of what image would fit this email (nature/wellness theme, no text)"
+  "image_suggestion": "A 1-sentence scene description that fits this email's topic. Describe a lifestyle/wellness setting where the recommended CBD product bottle is naturally placed (e.g. 'A warm evening bedside table with soft lamplight, herbal tea, and the CBD oil bottle, radiating calm and restful energy'). The scene should relate to the studies discussed."
 }`;
 
     if (!OPENROUTER_API_KEY) {
-        throw new Error("OPENROUTER_API_KEY not configured. Add it to Vercel Environment Variables.");
+        throw new Error("OPENROUTER_API_KEY not configured. Add it to Netlify Environment Variables.");
     }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -160,7 +186,7 @@ OUTPUT FORMAT (respond in valid JSON only):
             model: "anthropic/claude-sonnet-4.6",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
-            max_tokens: 4000,
+            max_tokens: 6000,
         }),
     });
 
@@ -191,9 +217,41 @@ OUTPUT FORMAT (respond in valid JSON only):
     return JSON.parse(jsonMatch[0]);
 }
 
-// ═══ STEP 3: Gemini 3.1 Flash Image ═══
-async function generateImage(imageSuggestion: string): Promise<{ imageUrl: string; prompt: string }> {
-    const imagePrompt = `Professional wellness photography: ${imageSuggestion}. Style: clean, modern, natural green tones matching a premium CBD brand. Soft lighting, minimalist composition. No text, no logos, no people's faces. High quality, editorial style.`;
+// ═══ STEP 3: Gemini 3.1 Flash Image (with product reference) ═══
+async function generateImage(imageSuggestion: string, productSlug: string): Promise<{ imageUrl: string; prompt: string }> {
+    // Fetch the product's actual photo from DB to use as reference
+    const { data: product } = await supabaseAdmin
+        .from("products")
+        .select("image_urls")
+        .eq("slug", productSlug)
+        .maybeSingle();
+
+    const productImageUrl = product?.image_urls?.[0] || "";
+    let productBase64 = "";
+    let productMime = "image/jpeg";
+
+    if (productImageUrl) {
+        try {
+            const imgRes = await fetch(productImageUrl);
+            if (imgRes.ok) {
+                const arrBuf = await imgRes.arrayBuffer();
+                productBase64 = Buffer.from(arrBuf).toString("base64");
+                productMime = imgRes.headers.get("content-type") || "image/jpeg";
+            }
+        } catch { /* continue without reference */ }
+    }
+
+    const imagePrompt = `Create a premium lifestyle/wellness photograph: ${imageSuggestion}. The CBD oil bottle from the reference image MUST appear prominently in the scene. Style: editorial product photography, warm natural lighting, soft depth-of-field, premium green and earth tones matching a European CBD brand. Photorealistic. No text overlays, no logos, no faces. High quality, 16:9 ratio.`;
+
+    // Build multimodal parts: text prompt + optional product reference image
+    const parts: Array<Record<string, unknown>> = [
+        { text: `Generate an image: ${imagePrompt}` },
+    ];
+    if (productBase64) {
+        parts.push({
+            inlineData: { mimeType: productMime, data: productBase64 },
+        });
+    }
 
     const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_KEY}`,
@@ -201,7 +259,7 @@ async function generateImage(imageSuggestion: string): Promise<{ imageUrl: strin
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: `Generate an image: ${imagePrompt}` }] }],
+                contents: [{ parts }],
                 generationConfig: {
                     responseModalities: ["TEXT", "IMAGE"],
                 },
@@ -217,8 +275,8 @@ async function generateImage(imageSuggestion: string): Promise<{ imageUrl: strin
     const data = await response.json();
 
     // Find the image part in the response
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    const imagePart = parts.find((p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData);
+    const resParts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = resParts.find((p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData);
 
     if (!imagePart?.inlineData) {
         throw new Error("Gemini did not return an image");
@@ -290,7 +348,7 @@ export async function POST(req: NextRequest) {
         let imageUrl = "";
         let imagePrompt = "";
         try {
-            const imgResult = await generateImage(aiResult.image_suggestion);
+            const imgResult = await generateImage(aiResult.image_suggestion, aiResult.recommended_product);
             imageUrl = imgResult.imageUrl;
             imagePrompt = imgResult.prompt;
         } catch (imgErr) {
