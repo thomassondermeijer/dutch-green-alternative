@@ -27,7 +27,6 @@ function getSeasonalCoupon(): { code: string; discount: number; reason: string }
     const year = now.getFullYear();
     const yr = year.toString().slice(-2);
 
-    // Easter calculation (Anonymous Gregorian algorithm)
     const a = year % 19, b = Math.floor(year / 100), c = year % 100;
     const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
     const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
@@ -38,7 +37,6 @@ function getSeasonalCoupon(): { code: string; discount: number; reason: string }
     const easterDay = ((h + l - 7 * m + 114) % 31) + 1;
     const easter = new Date(year, easterMonth - 1, easterDay);
 
-    // Calendar of events (month is 0-indexed for Date constructor)
     const events: { date: Date; code: string; discount: number; reason: string }[] = [
         { date: new Date(year, 0, 1), code: "NEWYEAR" + yr, discount: 12, reason: "New Year" },
         { date: new Date(year, 1, 14), code: "VALENTINE" + yr, discount: 10, reason: "Valentine's Day" },
@@ -56,91 +54,109 @@ function getSeasonalCoupon(): { code: string; discount: number; reason: string }
         { date: new Date(year, 10, 28), code: "BLACKFRIDAY" + yr, discount: 20, reason: "Black Friday" },
         { date: new Date(year, 11, 21), code: "WINTER" + yr, discount: 10, reason: "Winter Solstice" },
         { date: new Date(year, 11, 25), code: "KERST" + yr, discount: 15, reason: "Christmas" },
-        // Next year's events (for late December)
         { date: new Date(year + 1, 0, 1), code: "NEWYEAR" + (Number(yr) + 1), discount: 12, reason: "New Year" },
     ];
 
-    // Sort by date and find the next upcoming event (within 21 days)
     events.sort((a, b) => a.date.getTime() - b.date.getTime());
-    const upcoming = events.find(e => e.date.getTime() >= now.getTime() - 86400000); // allow 1 day past
+    const upcoming = events.find(e => e.date.getTime() >= now.getTime() - 86400000);
     return upcoming || events[0];
 }
 
-// ═══ STEP 1: Scrape BudMed Bulletin ═══
-// Uses Jina Reader API (r.jina.ai) — free, no auth, renders JS, bypasses Cloudflare.
-// Step A: Fetch archive via Jina to find latest issue URL
-// Step B: Fetch that post via Jina for clean markdown content
+// ═══ Multi-step generation pipeline ═══
+// The frontend calls POST with { step: 1|2|3, campaignId? }
+// Each step fits within Netlify's timeout limit
 
-async function scrapeBudMed(): Promise<{ title: string; content: string; url: string }> {
-    // Check last fetched issue from DB to avoid re-sending
-    const { data: lastCampaign } = await supabaseAdmin
-        .from("marketing_campaigns")
-        .select("source_url")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+export async function POST(req: NextRequest) {
+    try {
+        const body = await req.json().catch(() => ({}));
+        const step = body.step || 1;
+        const campaignId = body.campaignId;
 
-    const lastIssueUrl = lastCampaign?.source_url || "";
+        // ═══ STEP 1: Scrape + Coupon + Create draft (~5s) ═══
+        if (step === 1) {
+            // Check last fetched issue from DB
+            const { data: lastCampaign } = await supabaseAdmin
+                .from("marketing_campaigns")
+                .select("source_url")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-    // Step A: Get archive page via Jina Reader to find latest issue URL
-    const archiveRes = await fetch("https://r.jina.ai/https://budmedbulletin.beehiiv.com/archive", {
-        headers: { "Accept": "text/plain" },
-    });
+            const lastIssueUrl = lastCampaign?.source_url || "";
 
-    if (!archiveRes.ok) {
-        throw new Error(`Jina Reader archive error: ${archiveRes.status}`);
-    }
+            // Fetch archive via Jina Reader
+            const archiveRes = await fetch("https://r.jina.ai/https://budmedbulletin.beehiiv.com/archive", {
+                headers: { "Accept": "text/plain" },
+            });
+            if (!archiveRes.ok) throw new Error(`Jina archive error: ${archiveRes.status}`);
+            const archiveText = await archiveRes.text();
 
-    const archiveText = await archiveRes.text();
+            const issueUrls = [...archiveText.matchAll(/https:\/\/budmedbulletin\.beehiiv\.com\/p\/(issue-\d+[^)\s]*)/g)]
+                .map(m => `https://budmedbulletin.beehiiv.com/p/${m[1]}`);
+            if (issueUrls.length === 0) throw new Error("No BudMed issues found");
 
-    // Extract all issue URLs from the archive markdown
-    const issueUrls = [...archiveText.matchAll(/https:\/\/budmedbulletin\.beehiiv\.com\/p\/(issue-\d+[^)\s]*)/g)]
-        .map(m => `https://budmedbulletin.beehiiv.com/p/${m[1]}`);
+            let targetUrl = issueUrls[0];
+            for (const url of issueUrls) {
+                if (url !== lastIssueUrl) { targetUrl = url; break; }
+            }
 
-    if (issueUrls.length === 0) {
-        throw new Error("No BudMed issues found in archive");
-    }
+            // Fetch post content
+            const postRes = await fetch(`https://r.jina.ai/${targetUrl}`, { headers: { "Accept": "text/plain" } });
+            if (!postRes.ok) throw new Error(`Jina post error: ${postRes.status}`);
+            const postText = await postRes.text();
 
-    // Find the first issue we haven't processed yet
-    let targetUrl = issueUrls[0]; // Default to latest
-    for (const url of issueUrls) {
-        if (url !== lastIssueUrl) {
-            targetUrl = url;
-            break;
+            const titleMatch = postText.match(/^#\s+(.+)$/m) || postText.match(/Title:\s*(.+)/);
+            const title = titleMatch ? titleMatch[1].trim() : "BudMed Bulletin";
+            const content = postText.slice(0, 8000);
+
+            // Coupon
+            const coupon = getSeasonalCoupon();
+            const { data: existingCoupon } = await supabaseAdmin.from("coupons").select("id").eq("code", coupon.code).maybeSingle();
+            if (!existingCoupon) {
+                await supabaseAdmin.from("coupons").insert({
+                    code: coupon.code, discount_type: "percentage", discount_value: coupon.discount,
+                    is_active: true, valid_from: new Date().toISOString(),
+                    valid_until: new Date(Date.now() + 30 * 86400000).toISOString(),
+                    max_uses: 999, usage_count: 0,
+                });
+            }
+
+            // Create placeholder campaign
+            const { data: campaign, error } = await supabaseAdmin.from("marketing_campaigns").insert({
+                source_url: targetUrl, source_title: title,
+                subject_de: "Generating...", subject_nl: "Generating...", subject_en: "Generating...",
+                body_html_de: "", body_html_nl: "", body_html_en: "",
+                image_url: "", image_prompt: "",
+                recommended_product_slug: "",
+                coupon_code: coupon.code, coupon_discount: coupon.discount,
+                status: "generating",
+                generation_log: { source_content: content, coupon, step: 1 },
+            }).select().single();
+
+            if (error) throw error;
+            return NextResponse.json({ success: true, step: 1, campaignId: campaign.id, message: "Content scraped, generating AI text..." });
         }
-    }
 
-    // Step B: Fetch the full post via Jina Reader
-    const postRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
-        headers: { "Accept": "text/plain" },
-    });
+        // ═══ STEP 2: Claude AI rewrite (~15s) ═══
+        if (step === 2 && campaignId) {
+            if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
 
-    if (!postRes.ok) {
-        throw new Error(`Jina Reader post error: ${postRes.status}`);
-    }
+            const { data: campaign } = await supabaseAdmin.from("marketing_campaigns")
+                .select("*").eq("id", campaignId).single();
+            if (!campaign) throw new Error("Campaign not found");
 
-    const postText = await postRes.text();
+            const log = (campaign.generation_log || {}) as Record<string, unknown>;
+            const sourceContent = (log.source_content as string) || "";
+            const coupon = (log.coupon as { code: string; discount: number; reason: string }) || { code: "", discount: 0, reason: "" };
 
-    // Extract title from first line or markdown heading
-    const titleMatch = postText.match(/^#\s+(.+)$/m) || postText.match(/Title:\s*(.+)/);
-    const title = titleMatch ? titleMatch[1].trim() : "BudMed Bulletin";
+            const productList = PRODUCTS.map(p => `- ${p.slug}: ${p.name} (€${p.price}) — good for: ${p.keywords.join(", ")}`).join("\n");
 
-    // Trim content to 8000 chars for token efficiency
-    const content = postText.slice(0, 8000);
-
-    return { title, content, url: targetUrl };
-}
-
-// ═══ STEP 2: Claude Sonnet 4.6 Rewrite ═══
-async function aiRewrite(sourceContent: string, sourceTitle: string, coupon: { code: string; discount: number; reason: string }) {
-    const productList = PRODUCTS.map(p => `- ${p.slug}: ${p.name} (€${p.price}) — good for: ${p.keywords.join(", ")}`).join("\n");
-
-    const prompt = `You are the content writer for Dutch Green Alternative (DGA), a premium European CBD oil brand.
+            const prompt = `You are the content writer for Dutch Green Alternative (DGA), a premium European CBD oil brand.
 Your audience is 50+ year old health-conscious Europeans interested in natural wellness and CBD research.
 
 TASK: Rewrite the following medical cannabis research newsletter into a DGA marketing email.
 
-SOURCE ARTICLE TITLE: ${sourceTitle}
+SOURCE ARTICLE TITLE: ${campaign.source_title}
 SOURCE CONTENT:
 ${sourceContent}
 
@@ -172,217 +188,130 @@ OUTPUT FORMAT (respond in valid JSON only):
   "image_suggestion": "A 1-sentence scene description that fits this email's topic. Describe a lifestyle/wellness setting where the recommended CBD product bottle is naturally placed (e.g. 'A warm evening bedside table with soft lamplight, herbal tea, and the CBD oil bottle, radiating calm and restful energy'). The scene should relate to the studies discussed."
 }`;
 
-    if (!OPENROUTER_API_KEY) {
-        throw new Error("OPENROUTER_API_KEY not configured. Add it to Netlify Environment Variables.");
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        },
-        body: JSON.stringify({
-            model: "anthropic/claude-sonnet-4.6",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.7,
-            max_tokens: 6000,
-        }),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-        throw new Error(`OpenRouter error: ${response.status} - ${responseText.slice(0, 500)}`);
-    }
-
-    // Safety: check for HTML response (rate limit pages etc.)
-    if (responseText.trimStart().startsWith("<")) {
-        throw new Error(`OpenRouter returned HTML instead of JSON: ${responseText.slice(0, 200)}`);
-    }
-
-    let data;
-    try {
-        data = JSON.parse(responseText);
-    } catch {
-        throw new Error(`OpenRouter response not valid JSON: ${responseText.slice(0, 300)}`);
-    }
-
-    const content = data.choices?.[0]?.message?.content || "";
-
-    // Extract JSON from response (handle markdown code blocks)
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Claude did not return valid JSON");
-
-    return JSON.parse(jsonMatch[0]);
-}
-
-// ═══ STEP 3: Gemini 3.1 Flash Image (with product reference) ═══
-async function generateImage(imageSuggestion: string, productSlug: string): Promise<{ imageUrl: string; prompt: string }> {
-    // Fetch the product's actual photo from DB to use as reference
-    const { data: product } = await supabaseAdmin
-        .from("products")
-        .select("image_urls")
-        .eq("slug", productSlug)
-        .maybeSingle();
-
-    const productImageUrl = product?.image_urls?.[0] || "";
-    let productBase64 = "";
-    let productMime = "image/jpeg";
-
-    if (productImageUrl) {
-        try {
-            const imgRes = await fetch(productImageUrl);
-            if (imgRes.ok) {
-                const arrBuf = await imgRes.arrayBuffer();
-                productBase64 = Buffer.from(arrBuf).toString("base64");
-                productMime = imgRes.headers.get("content-type") || "image/jpeg";
-            }
-        } catch { /* continue without reference */ }
-    }
-
-    const imagePrompt = `Create a premium lifestyle/wellness photograph: ${imageSuggestion}. The CBD oil bottle from the reference image MUST appear prominently in the scene. Style: editorial product photography, warm natural lighting, soft depth-of-field, premium green and earth tones matching a European CBD brand. Photorealistic. No text overlays, no logos, no faces. High quality, 16:9 ratio.`;
-
-    // Build multimodal parts: text prompt + optional product reference image
-    const parts: Array<Record<string, unknown>> = [
-        { text: `Generate an image: ${imagePrompt}` },
-    ];
-    if (productBase64) {
-        parts.push({
-            inlineData: { mimeType: productMime, data: productBase64 },
-        });
-    }
-
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_KEY}`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: {
-                    responseModalities: ["TEXT", "IMAGE"],
-                },
-            }),
-        }
-    );
-
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Gemini image error: ${response.status} - ${err}`);
-    }
-
-    const data = await response.json();
-
-    // Find the image part in the response
-    const resParts = data.candidates?.[0]?.content?.parts || [];
-    const imagePart = resParts.find((p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData);
-
-    if (!imagePart?.inlineData) {
-        throw new Error("Gemini did not return an image");
-    }
-
-    // Upload to Supabase Storage
-    const base64Data = imagePart.inlineData.data;
-    const mimeType = imagePart.inlineData.mimeType || "image/png";
-    const ext = mimeType.includes("jpeg") ? "jpg" : "png";
-    const fileName = `marketing/newsletter-${Date.now()}.${ext}`;
-
-    const buffer = Buffer.from(base64Data, "base64");
-
-    const { error: uploadError } = await supabaseAdmin.storage
-        .from("DGA")
-        .upload(fileName, buffer, { contentType: mimeType, upsert: true });
-
-    if (uploadError) throw new Error(`Storage upload error: ${uploadError.message}`);
-
-    const { data: urlData } = supabaseAdmin.storage.from("DGA").getPublicUrl(fileName);
-
-    return { imageUrl: urlData.publicUrl, prompt: imagePrompt };
-}
-
-// ═══ MAIN HANDLER ═══
-export async function POST(req: NextRequest) {
-    try {
-        const log: Record<string, unknown> = {};
-
-        // Step 1: Scrape
-        log.scrape_start = new Date().toISOString();
-        const source = await scrapeBudMed();
-        log.scrape_done = new Date().toISOString();
-        log.source_title = source.title;
-        log.source_url = source.url;
-
-        // Step 2: Coupon
-        const coupon = getSeasonalCoupon();
-        log.coupon = coupon;
-
-        // Check if coupon already exists, create if not
-        const { data: existingCoupon } = await supabaseAdmin
-            .from("coupons")
-            .select("id")
-            .eq("code", coupon.code)
-            .maybeSingle();
-
-        if (!existingCoupon) {
-            await supabaseAdmin.from("coupons").insert({
-                code: coupon.code,
-                discount_type: "percentage",
-                discount_value: coupon.discount,
-                is_active: true,
-                valid_from: new Date().toISOString(),
-                valid_until: new Date(Date.now() + 30 * 86400000).toISOString(), // 30 days
-                max_uses: 999,
-                usage_count: 0,
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENROUTER_API_KEY}` },
+                body: JSON.stringify({
+                    model: "anthropic/claude-sonnet-4.6",
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.7, max_tokens: 6000,
+                }),
             });
-        }
 
-        // Step 3: AI Rewrite
-        log.ai_start = new Date().toISOString();
-        const aiResult = await aiRewrite(source.content, source.title, coupon);
-        log.ai_done = new Date().toISOString();
-        log.recommended_product = aiResult.recommended_product;
+            const responseText = await response.text();
+            if (!response.ok) throw new Error(`OpenRouter error: ${response.status} - ${responseText.slice(0, 500)}`);
+            if (responseText.trimStart().startsWith("<")) throw new Error(`OpenRouter returned HTML: ${responseText.slice(0, 200)}`);
 
-        // Step 4: Generate Image
-        log.image_start = new Date().toISOString();
-        let imageUrl = "";
-        let imagePrompt = "";
-        try {
-            const imgResult = await generateImage(aiResult.image_suggestion, aiResult.recommended_product);
-            imageUrl = imgResult.imageUrl;
-            imagePrompt = imgResult.prompt;
-        } catch (imgErr) {
-            log.image_error = String(imgErr);
-            // Continue without image — not a deal-breaker
-        }
-        log.image_done = new Date().toISOString();
+            let data;
+            try { data = JSON.parse(responseText); } catch { throw new Error(`Invalid JSON from OpenRouter: ${responseText.slice(0, 300)}`); }
 
-        // Step 5: Save campaign draft
-        const { data: campaign, error } = await supabaseAdmin
-            .from("marketing_campaigns")
-            .insert({
-                source_url: source.url,
-                source_title: source.title,
+            const content = data.choices?.[0]?.message?.content || "";
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("Claude did not return valid JSON");
+            const aiResult = JSON.parse(jsonMatch[0]);
+
+            // Update campaign with AI content
+            await supabaseAdmin.from("marketing_campaigns").update({
                 subject_de: aiResult.subject_de,
                 subject_nl: aiResult.subject_nl,
                 subject_en: aiResult.subject_en,
                 body_html_de: aiResult.body_de,
                 body_html_nl: aiResult.body_nl,
                 body_html_en: aiResult.body_en,
+                recommended_product_slug: aiResult.recommended_product,
+                generation_log: { ...log, step: 2, image_suggestion: aiResult.image_suggestion },
+            }).eq("id", campaignId);
+
+            return NextResponse.json({ success: true, step: 2, campaignId, message: "AI text generated, creating image..." });
+        }
+
+        // ═══ STEP 3: Generate image + finalize (~15s) ═══
+        if (step === 3 && campaignId) {
+            const { data: campaign } = await supabaseAdmin.from("marketing_campaigns")
+                .select("*").eq("id", campaignId).single();
+            if (!campaign) throw new Error("Campaign not found");
+
+            const log = (campaign.generation_log || {}) as Record<string, unknown>;
+            const imageSuggestion = (log.image_suggestion as string) || "A premium CBD oil bottle in a natural wellness setting";
+            const productSlug = campaign.recommended_product_slug;
+
+            let imageUrl = "";
+            let imagePrompt = "";
+
+            try {
+                // Fetch product image for reference
+                const { data: product } = await supabaseAdmin.from("products").select("image_urls").eq("slug", productSlug).maybeSingle();
+                const productImageUrl = product?.image_urls?.[0] || "";
+                let productBase64 = "";
+                let productMime = "image/jpeg";
+
+                if (productImageUrl) {
+                    try {
+                        const imgRes = await fetch(productImageUrl);
+                        if (imgRes.ok) {
+                            const arrBuf = await imgRes.arrayBuffer();
+                            productBase64 = Buffer.from(arrBuf).toString("base64");
+                            productMime = imgRes.headers.get("content-type") || "image/jpeg";
+                        }
+                    } catch { /* continue without reference */ }
+                }
+
+                imagePrompt = `Create a premium lifestyle/wellness photograph: ${imageSuggestion}. The CBD oil bottle from the reference image MUST appear prominently in the scene. Style: editorial product photography, warm natural lighting, soft depth-of-field, premium green and earth tones matching a European CBD brand. Photorealistic. No text overlays, no logos, no faces. High quality, 16:9 ratio.`;
+
+                const parts: Array<Record<string, unknown>> = [{ text: `Generate an image: ${imagePrompt}` }];
+                if (productBase64) {
+                    parts.push({ inlineData: { mimeType: productMime, data: productBase64 } });
+                }
+
+                if (!GOOGLE_AI_STUDIO_KEY) throw new Error("GOOGLE_AI_STUDIO_KEY not configured");
+
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GOOGLE_AI_STUDIO_KEY}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts }],
+                            generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+                        }),
+                    }
+                );
+
+                if (!response.ok) throw new Error(`Gemini error: ${response.status}`);
+                const data = await response.json();
+                const resParts = data.candidates?.[0]?.content?.parts || [];
+                const imagePart = resParts.find((p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData);
+
+                if (imagePart?.inlineData) {
+                    const base64Data = imagePart.inlineData.data;
+                    const mimeType = imagePart.inlineData.mimeType || "image/png";
+                    const ext = mimeType.includes("jpeg") ? "jpg" : "png";
+                    const fileName = `marketing/newsletter-${Date.now()}.${ext}`;
+                    const buffer = Buffer.from(base64Data, "base64");
+
+                    const { error: uploadError } = await supabaseAdmin.storage
+                        .from("DGA").upload(fileName, buffer, { contentType: mimeType, upsert: true });
+                    if (!uploadError) {
+                        const { data: urlData } = supabaseAdmin.storage.from("DGA").getPublicUrl(fileName);
+                        imageUrl = urlData.publicUrl;
+                    }
+                }
+            } catch (imgErr) {
+                log.image_error = String(imgErr);
+            }
+
+            // Finalize campaign as draft
+            await supabaseAdmin.from("marketing_campaigns").update({
                 image_url: imageUrl,
                 image_prompt: imagePrompt,
-                recommended_product_slug: aiResult.recommended_product,
-                coupon_code: coupon.code,
-                coupon_discount: coupon.discount,
                 status: "draft",
-                generation_log: log,
-            })
-            .select()
-            .single();
+                generation_log: { ...log, step: 3, completed: new Date().toISOString() },
+            }).eq("id", campaignId);
 
-        if (error) throw error;
+            return NextResponse.json({ success: true, step: 3, campaignId, message: "Campaign ready for review!" });
+        }
 
-        return NextResponse.json({ success: true, campaign });
+        return NextResponse.json({ error: "Invalid step" }, { status: 400 });
     } catch (err) {
         console.error("[Marketing Generate]", err);
         return NextResponse.json(

@@ -31,6 +31,7 @@ const PRODUCTS: Record<string, { name: string; price: number }> = {
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     draft: { bg: "#f1f5f9", text: "#475569" },
+    generating: { bg: "#fef3c7", text: "#92400e" },
     approved: { bg: "#dbeafe", text: "#1e40af" },
     sending: { bg: "#fef3c7", text: "#92400e" },
     sent: { bg: "#dcfce7", text: "#166534" },
@@ -74,20 +75,51 @@ export default function MarketingPage() {
         setTimeout(() => setMessage(null), 5000);
     };
 
-    // ═══ Generate new campaign ═══
+    const [genProgress, setGenProgress] = useState("");
+
+    // ═══ Generate new campaign (3-step pipeline) ═══
     const handleGenerate = async () => {
         setGenerating(true);
         setMessage(null);
         try {
-            const res = await fetch("/api/admin/marketing/generate", { method: "POST" });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Generation failed");
+            // Step 1: Scrape + coupon
+            setGenProgress("Step 1/3: Scraping BudMed...");
+            const res1 = await fetch("/api/admin/marketing/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ step: 1 }),
+            });
+            const data1 = await res1.json();
+            if (!res1.ok) throw new Error(data1.error || "Step 1 failed");
+
+            // Step 2: Claude AI rewrite
+            setGenProgress("Step 2/3: AI writing email...");
+            const res2 = await fetch("/api/admin/marketing/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ step: 2, campaignId: data1.campaignId }),
+            });
+            const data2 = await res2.json();
+            if (!res2.ok) throw new Error(data2.error || "Step 2 failed");
+
+            // Step 3: Gemini image
+            setGenProgress("Step 3/3: Generating image...");
+            const res3 = await fetch("/api/admin/marketing/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ step: 3, campaignId: data1.campaignId }),
+            });
+            const data3 = await res3.json();
+            if (!res3.ok) throw new Error(data3.error || "Step 3 failed");
+
             showMsg("success", "Campaign draft generated! Click it to preview.");
             loadCampaigns();
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Generation failed");
+            loadCampaigns(); // Refresh to show partial results
         }
         setGenerating(false);
+        setGenProgress("");
     };
 
     // ═══ Approve campaign ═══
@@ -220,7 +252,7 @@ export default function MarketingPage() {
                             {generating ? (
                                 <>
                                     <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                                    Generating with AI...
+                                    {genProgress || "Generating with AI..."}
                                 </>
                             ) : "🤖 Generate New Campaign"}
                         </button>
