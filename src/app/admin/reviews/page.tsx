@@ -53,6 +53,20 @@ export default function AdminReviewsPage() {
         setActionLoading(null);
     };
 
+    const handleDelete = async (reviewId: string) => {
+        if (!confirm("Are you sure you want to permanently delete this review?")) return;
+        setActionLoading(reviewId);
+        const res = await fetch("/api/admin/reviews/delete", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reviewId }),
+        });
+        if (res.ok) {
+            await fetchReviews();
+        }
+        setActionLoading(null);
+    };
+
     const filtered = reviews.filter(r => {
         if (tab === "pending") return r.is_approved === null || (r.is_approved === false && !r.approved_at);
         if (tab === "approved") return r.is_approved === true;
@@ -160,33 +174,47 @@ export default function AdminReviewsPage() {
                             )}
 
                             {/* Actions */}
-                            {tab === "pending" && (
-                                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                                    <button
-                                        onClick={() => handleModerate(review.id, "approve")}
-                                        disabled={actionLoading === review.id}
-                                        style={{
-                                            padding: "8px 20px", borderRadius: "8px", border: "none",
-                                            background: "#2d5a3d", color: "#fff", fontWeight: 600,
-                                            cursor: "pointer", fontSize: "13px",
-                                            opacity: actionLoading === review.id ? 0.5 : 1,
-                                        }}
-                                    >
-                                        {actionLoading === review.id ? "..." : "✅ Approve & Send Coupon"}
-                                    </button>
-                                    <button
-                                        onClick={() => handleModerate(review.id, "reject")}
-                                        disabled={actionLoading === review.id}
-                                        style={{
-                                            padding: "8px 20px", borderRadius: "8px",
-                                            border: "1px solid #e5e7eb", background: "#fff",
-                                            color: "#6b7280", cursor: "pointer", fontSize: "13px",
-                                        }}
-                                    >
-                                        ❌ Reject
-                                    </button>
-                                </div>
-                            )}
+                            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                                {tab === "pending" && (
+                                    <>
+                                        <button
+                                            onClick={() => handleModerate(review.id, "approve")}
+                                            disabled={actionLoading === review.id}
+                                            style={{
+                                                padding: "8px 20px", borderRadius: "8px", border: "none",
+                                                background: "#2d5a3d", color: "#fff", fontWeight: 600,
+                                                cursor: "pointer", fontSize: "13px",
+                                                opacity: actionLoading === review.id ? 0.5 : 1,
+                                            }}
+                                        >
+                                            {actionLoading === review.id ? "..." : "✅ Approve & Send Coupon"}
+                                        </button>
+                                        <button
+                                            onClick={() => handleModerate(review.id, "reject")}
+                                            disabled={actionLoading === review.id}
+                                            style={{
+                                                padding: "8px 20px", borderRadius: "8px",
+                                                border: "1px solid #e5e7eb", background: "#fff",
+                                                color: "#6b7280", cursor: "pointer", fontSize: "13px",
+                                            }}
+                                        >
+                                            ❌ Reject
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    onClick={() => handleDelete(review.id)}
+                                    disabled={actionLoading === review.id}
+                                    style={{
+                                        padding: "8px 20px", borderRadius: "8px",
+                                        border: "1px solid #fecaca", background: "#fff",
+                                        color: "#dc2626", cursor: "pointer", fontSize: "13px",
+                                        marginLeft: tab !== "pending" ? 0 : "auto",
+                                    }}
+                                >
+                                    🗑 Delete
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
