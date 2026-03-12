@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         // Fetch review
         const { data: review, error: fetchErr } = await supabaseAdmin
             .from("reviews")
-            .select("*, product:products(name)")
+            .select("*")
             .eq("id", reviewId)
             .single();
 
@@ -94,8 +94,19 @@ export async function POST(req: NextRequest) {
             if (order?.language) locale = order.language;
         }
 
-        // Send reward email
-        const productName = review.product?.name || "unsere Produkte";
+        // Send reward email - get product name from translations
+        let productName = "unsere Produkte";
+        if (review.product_id) {
+            const { data: prod } = await supabaseAdmin
+                .from("products")
+                .select("translations")
+                .eq("id", review.product_id)
+                .single();
+            if (prod) {
+                const t = prod.translations as Record<string, { name?: string }>;
+                productName = t?.[locale]?.name || t?.de?.name || productName;
+            }
+        }
         const html = buildReviewRewardEmail({
             customerName: review.customer_name,
             couponCode,

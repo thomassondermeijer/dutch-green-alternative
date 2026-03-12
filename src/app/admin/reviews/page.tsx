@@ -18,7 +18,8 @@ type Review = {
     created_at: string;
     coupon_code: string | null;
     order_id: string | null;
-    products: { name: string } | null;
+    product_id: string | null;
+    product_name: string | null;
     orders: { order_number: string } | null;
 };
 
@@ -124,7 +125,7 @@ export default function AdminReviewsPage() {
                                 </div>
                                 <div style={{ textAlign: "right" }}>
                                     <div style={{ fontSize: "18px" }}>{renderStars(review.rating)}</div>
-                                    {review.products && <div style={{ fontSize: "12px", color: "#6b7280" }}>{review.products.name}</div>}
+                                    {review.product_name && <div style={{ fontSize: "12px", color: "#6b7280" }}>{review.product_name}</div>}
                                     {review.orders && <div style={{ fontSize: "12px", color: "#9ca3af" }}>Order: {review.orders.order_number}</div>}
                                 </div>
                             </div>
