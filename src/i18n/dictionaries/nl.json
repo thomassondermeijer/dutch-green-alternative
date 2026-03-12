@@ -138,7 +138,15 @@
         "loginButton": "Inloggen",
         "registerTitle": "Account aanmaken",
         "registerButton": "Registreren",
-        "forgotPassword": "Wachtwoord vergeten?"
+        "forgotPassword": "Wachtwoord vergeten?",
+        "magicLinkTab": "E-mail link",
+        "passwordTab": "Wachtwoord",
+        "magicLinkDesc": "Voer uw e-mailadres in en wij sturen u een inloglink. Geen wachtwoord nodig.",
+        "sendMagicLink": "Inloglink versturen",
+        "magicLinkSent": "E-mail verzonden!",
+        "magicLinkSentDesc": "We hebben een inloglink naar uw e-mailadres gestuurd. Klik op de link om in te loggen.",
+        "checkSpam": "Niet gevonden? Controleer uw spammap.",
+        "tryAgain": "Ander e-mailadres proberen"
     },
     "product": {
         "addedToCart": "Toegevoegd aan winkelwagen",

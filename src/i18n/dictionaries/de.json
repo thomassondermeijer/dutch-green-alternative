@@ -138,7 +138,15 @@
         "loginButton": "Anmelden",
         "registerTitle": "Konto erstellen",
         "registerButton": "Registrieren",
-        "forgotPassword": "Passwort vergessen?"
+        "forgotPassword": "Passwort vergessen?",
+        "magicLinkTab": "E-Mail-Link",
+        "passwordTab": "Passwort",
+        "magicLinkDesc": "Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Anmeldelink. Kein Passwort nötig.",
+        "sendMagicLink": "Anmeldelink senden",
+        "magicLinkSent": "E-Mail gesendet!",
+        "magicLinkSentDesc": "Wir haben einen Anmeldelink an Ihre E-Mail-Adresse gesendet. Klicken Sie auf den Link, um sich anzumelden.",
+        "checkSpam": "Nicht gefunden? Überprüfen Sie Ihren Spam-Ordner.",
+        "tryAgain": "Andere E-Mail versuchen"
     },
     "product": {
         "addedToCart": "Zum Warenkorb hinzugefügt",

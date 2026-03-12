@@ -138,7 +138,15 @@
         "loginButton": "Log In",
         "registerTitle": "Create Account",
         "registerButton": "Register",
-        "forgotPassword": "Forgot Password?"
+        "forgotPassword": "Forgot Password?",
+        "magicLinkTab": "Email Link",
+        "passwordTab": "Password",
+        "magicLinkDesc": "Enter your email and we'll send you a login link. No password needed.",
+        "sendMagicLink": "Send Login Link",
+        "magicLinkSent": "Check your email!",
+        "magicLinkSentDesc": "We sent a login link to your email address. Click the link to sign in.",
+        "checkSpam": "Don't see it? Check your spam folder.",
+        "tryAgain": "Try another email"
     },
     "product": {
         "addedToCart": "Added to cart",
