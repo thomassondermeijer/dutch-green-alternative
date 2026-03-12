@@ -130,6 +130,27 @@ export default function MarketingPage() {
         setSending(false);
     };
 
+    // ═══ Delete draft campaign ═══
+    const handleDelete = async (campaignId: string) => {
+        if (!confirm("Delete this draft campaign?")) return;
+        try {
+            const res = await fetch("/api/admin/marketing/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ campaignId }),
+            });
+            if (!res.ok) throw new Error("Delete failed");
+            showMsg("success", "Draft deleted");
+            if (selectedCampaign?.id === campaignId) {
+                setSelectedCampaign(null);
+                setTab("campaigns");
+            }
+            loadCampaigns();
+        } catch (err) {
+            showMsg("error", err instanceof Error ? err.message : "Delete failed");
+        }
+    };
+
     // Build preview HTML
     const getPreviewHtml = (camp: Campaign) => {
         const subjectKey = `subject_${locale}` as keyof Campaign;
@@ -252,6 +273,14 @@ export default function MarketingPage() {
                                             {camp.image_url && (
                                                 <img src={camp.image_url} alt="" style={{ width: 64, height: 64, borderRadius: "8px", objectFit: "cover", marginLeft: "1rem" }} />
                                             )}
+                                            {camp.status === "draft" && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(camp.id); }} style={{
+                                                    padding: "6px 10px", borderRadius: "6px", border: "1px solid #fecaca",
+                                                    background: "#fef2f2", color: "#dc2626", cursor: "pointer",
+                                                    fontSize: "0.75rem", fontWeight: 600, fontFamily: "inherit",
+                                                    marginLeft: "0.5rem", whiteSpace: "nowrap",
+                                                }}>🗑️</button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -367,6 +396,12 @@ export default function MarketingPage() {
                                         padding: "10px 20px", borderRadius: "8px", border: "1px solid #e2e8f0",
                                         background: "white", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit",
                                     }}>⏰ Approve + Schedule (tomorrow)</button>
+
+                                    <button onClick={() => handleDelete(selectedCampaign.id)} style={{
+                                        padding: "10px 20px", borderRadius: "8px", border: "1px solid #fecaca",
+                                        background: "#fef2f2", color: "#dc2626", cursor: "pointer",
+                                        fontWeight: 600, fontSize: "0.85rem", fontFamily: "inherit",
+                                    }}>🗑️ Delete Draft</button>
                                 </>
                             )}
 
