@@ -1,30 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Fire-and-forget: invokes the edge function, returns immediately.
+// Frontend uses Realtime on budmed_articles to see new articles appear.
 
-// Invokes the marketing-scrape edge function
 export async function POST() {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-        const res = await fetch(`${supabaseUrl}/functions/v1/marketing-scrape`, {
+        fetch(`${supabaseUrl}/functions/v1/marketing-scrape`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${serviceKey}`,
-            },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
             body: JSON.stringify({}),
-        });
+        }).catch(err => console.error("[Marketing Scrape] Edge function invoke failed:", err));
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Scrape failed");
-
-        return NextResponse.json(data);
+        return NextResponse.json({ success: true, message: "Scraping started" });
     } catch (err) {
         return NextResponse.json(
             { error: err instanceof Error ? err.message : "Scrape failed" },

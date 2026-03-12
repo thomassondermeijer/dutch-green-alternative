@@ -108,16 +108,46 @@ export default function MarketingPage() {
         setTimeout(() => setMessage(null), 5000);
     };
 
-    // ═══ Scrape latest BudMed articles ═══
+    // ═══ Scrape latest BudMed articles (fire-and-forget + Realtime) ═══
     const handleScrape = async () => {
         setScraping(true);
         setMessage(null);
         try {
             const res = await fetch("/api/admin/marketing/scrape", { method: "POST" });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Scrape failed");
-            showMsg("success", `Scraped ${data.newly_scraped} new article(s) (${data.already_scraped} already in library)`);
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Scrape failed"); }
+
+            showMsg("success", "Scraping BudMed... articles will appear as they're found");
+
+            // Subscribe to new articles via Realtime
+            const supabase = createClient();
+            let newCount = 0;
+
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => { channel.unsubscribe(); resolve(); }, 90000);
+
+                const channel = supabase
+                    .channel("scrape-progress")
+                    .on("postgres_changes", {
+                        event: "INSERT", schema: "public", table: "budmed_articles",
+                    }, () => {
+                        newCount++;
+                        showMsg("success", `📰 Found ${newCount} new article${newCount > 1 ? "s" : ""}...`);
+                        loadArticles();
+                    })
+                    .subscribe();
+
+                // Auto-finish after 90s or when no new articles for 15s
+                let lastActivity = Date.now();
+                const checkDone = setInterval(() => {
+                    if (Date.now() - lastActivity > 15000 && newCount > 0) {
+                        clearInterval(checkDone); clearTimeout(timeout); channel.unsubscribe(); resolve();
+                    }
+                    lastActivity = Date.now();
+                }, 5000);
+            });
+
             loadArticles();
+            showMsg("success", newCount > 0 ? `✅ Scraped ${newCount} new article(s)!` : "All articles already in library");
         } catch (err) {
             showMsg("error", err instanceof Error ? err.message : "Scrape failed");
         }
