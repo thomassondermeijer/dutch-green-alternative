@@ -437,6 +437,10 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+    .page {
+        padding: var(--space-xl) 0 var(--space-2xl);
+    }
+
     .productLayout {
         grid-template-columns: 1fr;
         gap: var(--space-xl);
@@ -444,6 +448,18 @@
 
     .gallery {
         position: static;
+    }
+
+    .productName {
+        font-size: var(--font-size-2xl);
+    }
+
+    .price {
+        font-size: var(--font-size-xl);
+    }
+
+    .shortDesc {
+        font-size: var(--font-size-base);
     }
 
     .purchaseRow {
@@ -464,12 +480,79 @@
         gap: var(--space-sm);
     }
 
+    .descriptionSection {
+        margin-top: var(--space-2xl);
+        padding-top: var(--space-xl);
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-xl);
+    }
+
     .dosageSection {
         grid-template-columns: 1fr;
         gap: var(--space-xl);
+        margin-top: var(--space-2xl);
+        padding-top: var(--space-xl);
+    }
+
+    .faqSection {
+        margin-top: var(--space-2xl);
+        padding-top: var(--space-xl);
+    }
+
+    .relatedSection {
+        margin-top: var(--space-2xl);
+        padding-top: var(--space-xl);
     }
 
     .relatedGrid {
         grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .productName {
+        font-size: var(--font-size-xl);
+    }
+
+    .thumbnails {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: var(--space-xs);
+    }
+
+    .thumb {
+        width: 60px;
+        height: 60px;
+        flex-shrink: 0;
+    }
+
+    .specsGrid {
+        grid-template-columns: 1fr;
+        padding: var(--space-md);
+    }
+
+    .ingredientsBox {
+        padding: var(--space-md);
+    }
+
+    .faqQuestion {
+        font-size: var(--font-size-sm);
+        padding: var(--space-md) 0;
+    }
+
+    .relatedGrid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-sm);
+    }
+
+    .placeholderImage {
+        font-size: 3rem;
     }
 }

@@ -230,20 +230,129 @@
 }
 
 @media (max-width: 768px) {
+    .page {
+        padding: var(--space-xl) 0 var(--space-2xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-2xl);
+        margin-bottom: var(--space-lg);
+    }
+
     .checkoutLayout {
         grid-template-columns: 1fr;
+    }
+
+    .formSection {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-md);
+    }
+
+    .sectionTitle {
+        font-size: var(--font-size-lg);
+        margin-bottom: var(--space-md);
     }
 
     .formGrid {
         grid-template-columns: 1fr;
     }
 
+    .input,
+    .select {
+        padding: 0.875rem 1rem;
+        font-size: 16px; /* prevents iOS zoom on focus */
+        min-height: 48px; /* touch-friendly */
+    }
+
     .summary {
         position: static;
+        padding: var(--space-lg);
+    }
+
+    .summaryTitle {
+        font-size: var(--font-size-lg);
     }
 
     .paymentMethods {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .paymentOption {
+        padding: var(--space-md);
+    }
+
+    .paymentLabel {
+        font-size: var(--font-size-xs);
+        white-space: normal;
+        line-height: 1.3;
+    }
+
+    .couponInput {
+        flex-direction: row;
+    }
+
+    .successPage {
+        padding: var(--space-2xl) 0;
+    }
+
+    .successTitle {
+        font-size: var(--font-size-2xl);
+    }
+
+    .successActions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-xl);
+    }
+
+    .formSection {
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+    }
+
+    .paymentMethods {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xs);
+    }
+
+    .paymentOption {
+        padding: var(--space-sm) var(--space-xs);
+    }
+
+    .paymentIcon {
+        font-size: 1.25rem;
+    }
+
+    .summary {
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+    }
+
+    .summaryTotal {
+        font-size: var(--font-size-lg);
+    }
+
+    .successIcon {
+        width: 64px;
+        height: 64px;
+        font-size: 2rem;
+    }
+
+    .successMessage {
+        font-size: var(--font-size-base);
+    }
+
+    .orderNumber {
+        font-size: var(--font-size-lg);
+        padding: var(--space-sm) var(--space-md);
     }
 }
 
