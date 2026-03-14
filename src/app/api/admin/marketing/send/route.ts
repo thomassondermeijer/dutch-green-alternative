@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/resend/client";
+import { sendBatchEmails, type BatchEmailItem } from "@/lib/resend/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
 
 const supabaseAdmin = createClient(
@@ -19,8 +19,12 @@ const PRODUCTS: Record<string, { name: string; price: number }> = {
     "body-harmony-8": { name: "Body Harmony", price: 44.95 },
 };
 
-const BATCH_SIZE = 50;
-const BATCH_DELAY = 1000;
+/**
+ * Resend Batch API allows up to 100 emails per call.
+ * We use 100 per batch with 1.5s delay between batches to stay safe.
+ */
+const BATCH_SIZE = 100;
+const BATCH_DELAY = 1500;
 const NAME_FALLBACK: Record<string, string> = { de: "Kunde", nl: "Klant", en: "Customer" };
 
 type AudienceFilter = {
@@ -48,7 +52,6 @@ async function getFilteredRecipients(filter: AudienceFilter): Promise<Recipient[
 
     if (error) {
         console.error("[Filter Recipients]", error);
-        // Fallback: all customers
         const { data: fallback } = await supabaseAdmin.from("customers").select("email, first_name, language_pref").not("email", "is", null);
         return (fallback || []) as Recipient[];
     }
@@ -66,7 +69,7 @@ export async function PUT(req: NextRequest) {
     }
 }
 
-// POST: send campaign
+// POST: send campaign using Resend Batch API
 export async function POST(req: NextRequest) {
     try {
         const { campaignId, testEmail } = await req.json();
@@ -91,43 +94,67 @@ export async function POST(req: NextRequest) {
             recipients = await getFilteredRecipients((campaign.audience_filter || {}) as AudienceFilter);
         }
 
+        // 1. Build all email payloads
+        type PreparedEmail = { recipient: Recipient; locale: string; subject: string; batchItem: BatchEmailItem };
+        const prepared: PreparedEmail[] = recipients.map((recipient) => {
+            const locale = recipient.language_pref || "de";
+            const subject = (campaign[`subject_${locale}`] as string) || campaign.subject_de;
+            let bodyHtml = (campaign[`body_html_${locale}`] as string) || campaign.body_html_de;
+
+            const firstName = recipient.first_name || NAME_FALLBACK[locale] || NAME_FALLBACK.de;
+            bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, firstName);
+            bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(campaign.coupon_discount));
+
+            const html = buildMarketingNewsletterEmail({
+                subject, bodyHtml,
+                imageUrl: campaign.image_url || undefined,
+                productName: product.name,
+                productSlug: campaign.recommended_product_slug,
+                productPrice: product.price,
+                couponCode: campaign.coupon_code,
+                couponDiscount: campaign.coupon_discount,
+                locale,
+            });
+
+            return {
+                recipient, locale, subject,
+                batchItem: { to: recipient.email, subject, html },
+            };
+        });
+
+        // 2. Send in batches of 100 using Resend Batch API
         let sentCount = 0;
         let failedCount = 0;
 
-        for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-            const batch = recipients.slice(i, i + BATCH_SIZE);
-            await Promise.allSettled(batch.map(async (recipient) => {
-                const locale = recipient.language_pref || "de";
-                const subject = (campaign[`subject_${locale}`] as string) || campaign.subject_de;
-                let bodyHtml = (campaign[`body_html_${locale}`] as string) || campaign.body_html_de;
+        for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
+            const batchSlice = prepared.slice(i, i + BATCH_SIZE);
+            const batchItems = batchSlice.map((p) => p.batchItem);
 
-                const firstName = recipient.first_name || NAME_FALLBACK[locale] || NAME_FALLBACK.de;
-                bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, firstName);
-                bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(campaign.coupon_discount));
+            const results = await sendBatchEmails(batchItems);
 
-                const html = buildMarketingNewsletterEmail({
-                    subject, bodyHtml,
-                    imageUrl: campaign.image_url || undefined,
-                    productName: product.name,
-                    productSlug: campaign.recommended_product_slug,
-                    productPrice: product.price,
-                    couponCode: campaign.coupon_code,
-                    couponDiscount: campaign.coupon_discount,
-                    locale,
-                });
-
-                const result = await sendEmail({ to: recipient.email, subject, html });
-                await supabaseAdmin.from("email_log").insert({
-                    recipient: recipient.email, template: "marketing-newsletter", subject,
-                    language: locale, status: result.success ? "sent" : "failed",
-                    resend_id: result.id || null,
-                    campaign_id: campaignId,
-                    metadata: { coupon: campaign.coupon_code, product: campaign.recommended_product_slug },
-                });
-                if (result.success) sentCount++; else failedCount++;
+            // 3. Log each email result
+            const logEntries = batchSlice.map((p, idx) => ({
+                recipient: p.recipient.email,
+                template: "marketing-newsletter",
+                subject: p.subject,
+                language: p.locale,
+                status: results[idx]?.success ? "sent" : "failed",
+                resend_id: results[idx]?.id || null,
+                campaign_id: campaignId,
+                metadata: { coupon: campaign.coupon_code, product: campaign.recommended_product_slug },
             }));
 
-            if (i + BATCH_SIZE < recipients.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
+            // Batch insert logs
+            await supabaseAdmin.from("email_log").insert(logEntries);
+
+            results.forEach((r) => {
+                if (r.success) sentCount++; else failedCount++;
+            });
+
+            // Wait between batches to stay within rate limits
+            if (i + BATCH_SIZE < prepared.length) {
+                await new Promise((r) => setTimeout(r, BATCH_DELAY));
+            }
         }
 
         if (!testEmail) {
