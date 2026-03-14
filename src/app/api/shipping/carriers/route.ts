@@ -28,6 +28,7 @@ export async function GET() {
         }
 
         const data = await res.json();
+        console.log("[Acut Carriers] Full API response:", JSON.stringify(data, null, 2));
         const carriers = (data.data || []).map((c: { id: number; title: string }) => ({
             id: c.id,
             title: c.title,
