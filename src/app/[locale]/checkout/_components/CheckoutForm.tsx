@@ -359,31 +359,7 @@ export function CheckoutForm({ locale, dict }: CheckoutFormProps) {
                     )}
                 </div>
 
-                {/* Shipping Method (only shown if Acut has carriers configured) */}
-                {carriers.length > 0 && (
-                    <div className={styles.formSection}>
-                        <h2 className={styles.sectionTitle}>{dict.checkout.shippingMethod || "Shipping Method"}</h2>
-                        <div className={styles.paymentMethods}>
-                            {carriers.map((carrier) => (
-                                <label
-                                    key={carrier.id}
-                                    className={`${styles.paymentOption} ${selectedCarrierId === carrier.id ? styles.paymentOptionActive : ""}`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="carrier"
-                                        value={carrier.id}
-                                        checked={selectedCarrierId === carrier.id}
-                                        onChange={() => setSelectedCarrierId(carrier.id)}
-                                        className={styles.paymentRadio}
-                                    />
-                                    <span className={styles.paymentIcon}>📦</span>
-                                    <span className={styles.paymentLabel}>{carrier.title}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                {/* Shipping Method — hidden for now, Acut chooses carrier automatically */}
 
                 {/* Payment Method */}
                 <div className={styles.formSection}>
