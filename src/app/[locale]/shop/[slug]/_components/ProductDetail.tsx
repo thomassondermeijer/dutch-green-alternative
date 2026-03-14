@@ -55,10 +55,14 @@ export function ProductDetail({ product, locale, dict }: ProductDetailProps) {
             const params = new URLSearchParams(window.location.search);
             const couponParam = params.get("coupon");
             if (couponParam) {
+                const code = couponParam.toUpperCase();
                 localStorage.setItem("dga_coupon", JSON.stringify({
-                    code: couponParam.toUpperCase(),
+                    code,
                     expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
                 }));
+                // Show confirmation toast
+                const msg = (dict.cart.couponSaved || "✨ Discount code {code} saved!").replace("{code}", code);
+                showToast(msg);
             }
         } catch { /* ignore */ }
     }, []);

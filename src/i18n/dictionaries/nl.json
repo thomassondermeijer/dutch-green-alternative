@@ -80,7 +80,9 @@
         "applyCoupon": "Toepassen",
         "couponApplied": "Kortingscode toegepast",
         "couponInvalid": "Ongeldige kortingscode",
-        "discount": "Korting"
+        "discount": "Korting",
+        "couponSaved": "✨ Kortingscode {code} opgeslagen!",
+        "couponAppliedAtCheckout": "🎟️ {code} — Korting wordt toegepast bij het afrekenen"
     },
     "checkout": {
         "title": "Afrekenen",

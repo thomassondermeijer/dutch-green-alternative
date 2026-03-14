@@ -80,7 +80,9 @@
         "applyCoupon": "Apply",
         "couponApplied": "Discount code applied",
         "couponInvalid": "Invalid discount code",
-        "discount": "Discount"
+        "discount": "Discount",
+        "couponSaved": "✨ Discount code {code} saved!",
+        "couponAppliedAtCheckout": "🎟️ {code} — Discount applied at checkout"
     },
     "checkout": {
         "title": "Checkout",

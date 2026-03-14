@@ -80,7 +80,9 @@
         "applyCoupon": "Anwenden",
         "couponApplied": "Gutschein angewendet",
         "couponInvalid": "Ungültiger Gutscheincode",
-        "discount": "Rabatt"
+        "discount": "Rabatt",
+        "couponSaved": "✨ Rabattcode {code} gespeichert!",
+        "couponAppliedAtCheckout": "🎟️ {code} — Rabatt wird beim Checkout angewendet"
     },
     "checkout": {
         "title": "Kasse",

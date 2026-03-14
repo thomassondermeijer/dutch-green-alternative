@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCart } from "@/lib/cart/cart-context";
 import { Button } from "@/components/ui/Button/Button";
@@ -13,6 +14,7 @@ type CartDrawerProps = {
 };
 
 export function CartDrawer({ locale, dict }: CartDrawerProps) {
+    const [savedCoupon, setSavedCoupon] = useState<string | null>(null);
     const {
         items,
         isDrawerOpen,
@@ -25,6 +27,28 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
         amountToFreeShipping,
         freeShippingThreshold,
     } = useCart();
+
+    // Check localStorage for saved coupon when drawer opens
+    useEffect(() => {
+        if (isDrawerOpen) {
+            try {
+                const saved = localStorage.getItem("dga_coupon");
+                if (saved) {
+                    const { code, expires } = JSON.parse(saved);
+                    if (expires && Date.now() > expires) {
+                        localStorage.removeItem("dga_coupon");
+                        setSavedCoupon(null);
+                    } else {
+                        setSavedCoupon(code);
+                    }
+                } else {
+                    setSavedCoupon(null);
+                }
+            } catch {
+                setSavedCoupon(null);
+            }
+        }
+    }, [isDrawerOpen]);
 
     if (!isDrawerOpen) return null;
 
@@ -161,6 +185,13 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
                                 </div>
                             )}
                         </div>
+
+                        {/* Coupon Banner */}
+                        {savedCoupon && (
+                            <div className={styles.couponBanner}>
+                                {(dict.cart.couponAppliedAtCheckout || "🎟️ {code} — Discount applied at checkout").replace("{code}", savedCoupon)}
+                            </div>
+                        )}
 
                         {/* Subtotal */}
                         <div className={styles.subtotalRow}>
