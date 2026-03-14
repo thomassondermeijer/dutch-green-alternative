@@ -36,7 +36,7 @@ const labels: Record<string, Record<string, string>> = {
 
 export function buildMarketingNewsletterEmail(data: MarketingEmailData): string {
   const t = labels[data.locale] || labels.de;
-  const shopUrl = `https://dutchgreenalternative.nl/${data.locale}/product/${data.productSlug}?coupon=${data.couponCode}`;
+  const shopUrl = `https://dutchgreenalternative.nl/${data.locale}/shop/${data.productSlug}?coupon=${data.couponCode}`;
   const unsubUrl = `https://dutchgreenalternative.nl/unsubscribe`;
 
   return `
