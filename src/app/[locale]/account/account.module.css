@@ -481,13 +481,46 @@
 }
 
 @media (max-width: 768px) {
+    .page {
+        padding: var(--space-xl) 0 var(--space-2xl);
+    }
+
+    .authPage {
+        padding: var(--space-xl) 0;
+    }
+
+    .authCard {
+        padding: var(--space-lg);
+    }
+
     .dashboardLayout {
         grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        order: -1;
+    }
+
+    .sidebarNav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+    }
+
+    .sidebarLink {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: var(--font-size-xs);
+    }
+
+    .input {
+        font-size: 16px; /* prevent iOS zoom */
+        min-height: 48px;
     }
 
     .orderHeader {
         flex-wrap: wrap;
         gap: var(--space-sm);
+        padding: var(--space-md);
     }
 
     .orderMeta {
@@ -506,5 +539,38 @@
 
     .orderChevron {
         display: none;
+    }
+
+    .orderDetails {
+        padding: 0 var(--space-md) var(--space-md);
+    }
+
+    .itemsTable th,
+    .itemsTable td {
+        padding: var(--space-xs);
+        font-size: var(--font-size-xs);
+    }
+}
+
+@media (max-width: 480px) {
+    .authCard {
+        padding: var(--space-md);
+    }
+
+    .authTitle {
+        font-size: var(--font-size-xl);
+    }
+
+    .contentTitle {
+        font-size: var(--font-size-lg);
+    }
+
+    .orderHeader {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .statusBadge {
+        font-size: 10px;
+        padding: 2px 6px;
     }
 }

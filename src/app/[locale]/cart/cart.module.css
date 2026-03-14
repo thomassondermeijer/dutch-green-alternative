@@ -308,20 +308,77 @@
 }
 
 @media (max-width: 768px) {
+    .page {
+        padding: var(--space-xl) 0 var(--space-2xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-2xl);
+        margin-bottom: var(--space-lg);
+    }
+
     .cartLayout {
         grid-template-columns: 1fr;
     }
 
     .cartItem {
-        flex-direction: column;
+        flex-direction: row;
+        gap: var(--space-md);
     }
 
     .itemImage {
-        width: 100%;
-        height: 200px;
+        width: 80px;
+        height: 80px;
+    }
+
+    .itemName {
+        font-size: var(--font-size-base);
+    }
+
+    .itemPrice {
+        font-size: var(--font-size-lg);
     }
 
     .summary {
         position: static;
+        padding: var(--space-lg);
+    }
+
+    .couponField {
+        font-size: 16px; /* prevent iOS zoom */
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-xl);
+    }
+
+    .cartItem {
+        gap: var(--space-sm);
+    }
+
+    .itemImage {
+        width: 72px;
+        height: 72px;
+    }
+
+    .itemBottom {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-sm);
+    }
+
+    .summary {
+        padding: var(--space-md);
+    }
+
+    .summaryTotal {
+        font-size: var(--font-size-lg);
     }
 }

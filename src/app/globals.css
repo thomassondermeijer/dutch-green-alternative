@@ -224,4 +224,27 @@ ul, ol {
   h3 {
     font-size: var(--font-size-xl);
   }
+
+  :root {
+    --header-height: 64px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: var(--font-size-2xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-xl);
+  }
+
+  h3 {
+    font-size: var(--font-size-lg);
+  }
+
+  :root {
+    --space-3xl: 3rem;
+    --space-4xl: 4rem;
+  }
 }

@@ -299,11 +299,76 @@
 }
 
 @media (max-width: 768px) {
+    .page {
+        padding: var(--space-xl) 0 var(--space-2xl);
+    }
+
+    .pageHeader {
+        margin-bottom: var(--space-xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-2xl);
+    }
+
+    .pageSubtitle {
+        font-size: var(--font-size-base);
+    }
 
     .storySection,
     .contactLayout,
     .valuesGrid,
     .infoGrid {
         grid-template-columns: 1fr;
+    }
+
+    .valueCard {
+        padding: var(--space-lg);
+    }
+
+    .contactInfoCard {
+        padding: var(--space-lg);
+    }
+
+    .input,
+    .textarea {
+        font-size: 16px; /* prevent iOS zoom */
+        min-height: 48px;
+    }
+
+    .accordionTrigger {
+        padding: var(--space-md);
+    }
+
+    .accordionContent {
+        padding: 0 var(--space-md) var(--space-md);
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .pageTitle {
+        font-size: var(--font-size-xl);
+    }
+
+    .valueCard {
+        padding: var(--space-md);
+    }
+
+    .valueIcon {
+        width: 52px;
+        height: 52px;
+    }
+
+    .infoCard {
+        padding: var(--space-md);
+    }
+
+    .contactInfoCard {
+        padding: var(--space-md);
+        gap: var(--space-md);
     }
 }
