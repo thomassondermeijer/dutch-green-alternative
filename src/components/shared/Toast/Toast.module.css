@@ -28,12 +28,40 @@
     height: 20px;
 }
 
+/* Coupon Toast — slides in from right */
+.couponToast {
+    position: fixed;
+    top: var(--space-xl);
+    right: var(--space-xl);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-xl);
+    background: linear-gradient(135deg, #2d5a3d, #4a7c59);
+    color: #ffffff;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(45, 90, 61, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+    opacity: 0;
+    animation: couponToastIn 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.couponToast.couponLeaving {
+    animation: couponToastOut 400ms ease forwards;
+}
+
+.couponToastIcon {
+    font-size: 1.25rem;
+}
+
 @keyframes toastIn {
     from {
         opacity: 0;
         transform: translateX(-50%) translateY(20px);
     }
-
     to {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
@@ -45,9 +73,30 @@
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
-
     to {
         opacity: 0;
         transform: translateX(-50%) translateY(20px);
+    }
+}
+
+@keyframes couponToastIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes couponToastOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
     }
 }

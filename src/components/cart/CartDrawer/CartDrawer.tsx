@@ -15,6 +15,11 @@ type CartDrawerProps = {
 
 export function CartDrawer({ locale, dict }: CartDrawerProps) {
     const [savedCoupon, setSavedCoupon] = useState<string | null>(null);
+    const [couponDiscount, setCouponDiscount] = useState<{
+        type: "percentage" | "fixed";
+        value: number;
+        maxDiscount: number | null;
+    } | null>(null);
     const {
         items,
         isDrawerOpen,
@@ -28,7 +33,7 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
         freeShippingThreshold,
     } = useCart();
 
-    // Check localStorage for saved coupon when drawer opens
+    // Check localStorage for saved coupon and validate when drawer opens
     useEffect(() => {
         if (isDrawerOpen) {
             try {
@@ -38,14 +43,34 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
                     if (expires && Date.now() > expires) {
                         localStorage.removeItem("dga_coupon");
                         setSavedCoupon(null);
-                    } else {
+                        setCouponDiscount(null);
+                    } else if (code) {
                         setSavedCoupon(code);
+                        // Validate coupon to get discount details
+                        fetch("/api/coupons/validate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ code: code.toUpperCase(), cartItems: [] }),
+                        })
+                            .then((r) => r.json())
+                            .then((data) => {
+                                if (data.valid && data.coupon) {
+                                    setCouponDiscount({
+                                        type: data.coupon.discount_type,
+                                        value: data.coupon.discount_value,
+                                        maxDiscount: data.coupon.max_discount_amount,
+                                    });
+                                }
+                            })
+                            .catch(() => { /* silent */ });
                     }
                 } else {
                     setSavedCoupon(null);
+                    setCouponDiscount(null);
                 }
             } catch {
                 setSavedCoupon(null);
+                setCouponDiscount(null);
             }
         }
     }, [isDrawerOpen]);
@@ -56,6 +81,20 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
         (subtotal / freeShippingThreshold) * 100,
         100
     );
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (couponDiscount) {
+        if (couponDiscount.type === "percentage") {
+            discountAmount = subtotal * (couponDiscount.value / 100);
+            if (couponDiscount.maxDiscount && discountAmount > couponDiscount.maxDiscount) {
+                discountAmount = couponDiscount.maxDiscount;
+            }
+        } else {
+            discountAmount = couponDiscount.value;
+        }
+    }
+    const estimatedTotal = subtotal + (hasReachedFreeShipping ? 0 : 4.95) - discountAmount;
 
     return (
         <>
@@ -186,10 +225,20 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
                             )}
                         </div>
 
-                        {/* Coupon Banner */}
-                        {savedCoupon && (
+                        {/* Coupon Banner with actual discount */}
+                        {savedCoupon && couponDiscount && (
                             <div className={styles.couponBanner}>
-                                {(dict.cart.couponAppliedAtCheckout || "🎟️ {code} — Discount applied at checkout").replace("{code}", savedCoupon)}
+                                <div className={styles.couponBannerTop}>
+                                    🎟️ <strong>{savedCoupon}</strong>
+                                    {couponDiscount.type === "percentage"
+                                        ? ` (−${couponDiscount.value}%)`
+                                        : ` (−€${couponDiscount.value.toFixed(2)})`}
+                                </div>
+                                {discountAmount > 0 && (
+                                    <div className={styles.couponBannerSaving}>
+                                        {dict.cart.discount || "Discount"}: −€{discountAmount.toFixed(2)}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -198,6 +247,14 @@ export function CartDrawer({ locale, dict }: CartDrawerProps) {
                             <span>{dict.cart.subtotal}</span>
                             <span>€{subtotal.toFixed(2)}</span>
                         </div>
+
+                        {/* Estimated total with discount */}
+                        {discountAmount > 0 && (
+                            <div className={styles.estimatedTotalRow}>
+                                <span>{dict.cart.total}</span>
+                                <span>€{estimatedTotal.toFixed(2)}</span>
+                            </div>
+                        )}
 
                         {/* Checkout Button */}
                         <Button

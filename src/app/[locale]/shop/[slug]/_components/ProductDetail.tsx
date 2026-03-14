@@ -62,7 +62,7 @@ export function ProductDetail({ product, locale, dict }: ProductDetailProps) {
                 }));
                 // Show confirmation toast
                 const msg = (dict.cart.couponSaved || "✨ Discount code {code} saved!").replace("{code}", code);
-                showToast(msg);
+                showToast(msg, "coupon");
             }
         } catch { /* ignore */ }
     }, []);

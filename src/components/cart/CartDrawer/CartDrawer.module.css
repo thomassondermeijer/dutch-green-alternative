@@ -238,8 +238,28 @@
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: #166534;
-    text-align: center;
     animation: couponSlideIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.couponBannerTop {
+    text-align: center;
+}
+
+.couponBannerSaving {
+    text-align: center;
+    margin-top: 4px;
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-semibold);
+    color: #15803d;
+}
+
+/* Estimated Total */
+.estimatedTotalRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold, 700);
+    color: #15803d;
 }
 
 @keyframes couponSlideIn {
