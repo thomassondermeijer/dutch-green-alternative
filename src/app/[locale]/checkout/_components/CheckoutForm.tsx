@@ -55,6 +55,37 @@ export function CheckoutForm({ locale, dict }: CheckoutFormProps) {
                 }
             })
             .catch(() => { /* ignore — no carriers available */ });
+
+        // Auto-apply coupon from localStorage (saved from email links)
+        try {
+            const saved = localStorage.getItem("dga_coupon");
+            if (saved) {
+                const { code, expires } = JSON.parse(saved);
+                if (expires && Date.now() > expires) {
+                    localStorage.removeItem("dga_coupon");
+                } else if (code) {
+                    setCouponInput(code);
+                    // Defer validation until component is mounted
+                    setTimeout(() => {
+                        setIsValidatingCoupon(true);
+                        fetch("/api/coupons/validate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ code: code.toUpperCase(), cartItems: [] }),
+                        })
+                            .then((r) => r.json())
+                            .then((data) => {
+                                if (data.valid) {
+                                    setCoupon(data.coupon);
+                                    localStorage.removeItem("dga_coupon");
+                                }
+                            })
+                            .catch(() => { /* silent fail */ })
+                            .finally(() => setIsValidatingCoupon(false));
+                    }, 100);
+                }
+            }
+        } catch { /* localStorage unavailable */ }
     }, []);
 
     const shippingCost = hasReachedFreeShipping ? 0 : 4.95;

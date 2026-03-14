@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
 import { useCart } from "@/lib/cart/cart-context";
 import { useToast } from "@/components/shared/Toast/Toast";
@@ -48,6 +49,18 @@ export function ProductDetail({ product, locale, dict }: ProductDetailProps) {
     const [openFaq, setOpenFaq] = useState<number | null>(null);
     const { addItem, openDrawer } = useCart();
     const { showToast } = useToast();
+    const searchParams = useSearchParams();
+
+    // Capture coupon from URL and persist to localStorage
+    useEffect(() => {
+        const couponParam = searchParams.get("coupon");
+        if (couponParam) {
+            localStorage.setItem("dga_coupon", JSON.stringify({
+                code: couponParam.toUpperCase(),
+                expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+            }));
+        }
+    }, [searchParams]);
 
     const t = product.translations[locale] || product.translations["de"];
     const categoryLabel =
