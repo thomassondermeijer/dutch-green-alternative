@@ -157,7 +157,7 @@ export function buildPaymentReminderEmail(data: PaymentReminderData): string {
         <!-- Header -->
         <tr>
           <td style="background-color: ${colors.solid}; background: ${colors.bg}; padding: 30px 40px; text-align: center;">
-            <img src="https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto; margin-bottom: 8px;" />
+            <img src="https://dutchgreenalternative.nl/email-assets/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto; margin-bottom: 8px;" />
             <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 16px; font-weight: 600; font-family: 'Outfit', sans-serif;">${stage.heading}</p>
           </td>
         </tr>

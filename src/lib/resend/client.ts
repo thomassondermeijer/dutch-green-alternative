@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@dutchgreenalternative.nl";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "info@dutchgreenalternative.nl";
 const FROM_NAME = "Dutch Green Alternative";
 
 export type EmailTemplate =

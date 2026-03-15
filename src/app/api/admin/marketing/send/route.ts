@@ -20,6 +20,22 @@ const PRODUCTS: Record<string, { name: string; price: number }> = {
 };
 
 /**
+ * Convert Supabase storage URLs to domain-proxied URLs for better email deliverability.
+ * e.g. https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/marketing/img.png
+ *   -> https://dutchgreenalternative.nl/email-assets/marketing/img.png
+ */
+const SUPABASE_STORAGE_PREFIX = "https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/";
+const DOMAIN_ASSET_PREFIX = "https://dutchgreenalternative.nl/email-assets/";
+
+function proxyImageUrl(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    if (url.startsWith(SUPABASE_STORAGE_PREFIX)) {
+        return url.replace(SUPABASE_STORAGE_PREFIX, DOMAIN_ASSET_PREFIX);
+    }
+    return url;
+}
+
+/**
  * Resend Batch API allows up to 100 emails per call.
  * We use 100 per batch with 1.5s delay between batches to stay safe.
  */
@@ -107,7 +123,7 @@ export async function POST(req: NextRequest) {
 
             const html = buildMarketingNewsletterEmail({
                 subject, bodyHtml,
-                imageUrl: campaign.image_url || undefined,
+                imageUrl: proxyImageUrl(campaign.image_url),
                 productName: product.name,
                 productSlug: campaign.recommended_product_slug,
                 productPrice: product.price,

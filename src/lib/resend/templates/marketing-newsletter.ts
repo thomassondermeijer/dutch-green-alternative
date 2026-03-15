@@ -58,7 +58,7 @@ export function buildMarketingNewsletterEmail(data: MarketingEmailData): string 
         <!-- Header -->
         <tr>
           <td bgcolor="#2d5a3d" style="background: linear-gradient(135deg, #2d5a3d, #4a7c59); background-color: #2d5a3d; padding: 30px 40px; text-align: center;">
-            <img src="https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto;" />
+            <img src="https://dutchgreenalternative.nl/email-assets/logo%20white.png" alt="Dutch Green Alternative" style="max-width: 200px; height: auto;" />
           </td>
         </tr>
 
