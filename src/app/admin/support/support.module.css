@@ -1,0 +1,396 @@
+.statusTabs {
+    display: flex;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-lg);
+}
+
+.statusTab {
+    padding: 6px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-body);
+    cursor: pointer;
+    background: var(--color-white);
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+}
+
+.statusTab:hover {
+    background-color: var(--color-bg-alt);
+}
+
+.statusTabActive {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+.ticketCount {
+    font-size: 11px;
+    margin-left: 4px;
+    opacity: 0.8;
+}
+
+/* Status Badges */
+.statusOpen {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.statusPending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.statusClosed {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+/* Priority */
+.priorityUrgent {
+    color: #dc2626;
+    font-weight: var(--font-weight-semibold);
+}
+
+.priorityHigh {
+    color: #ea580c;
+}
+
+.priorityNormal {
+    color: var(--color-text-muted);
+}
+
+.priorityLow {
+    color: #94a3b8;
+}
+
+/* Language flags */
+.langBadge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background-color: #f1f5f9;
+    color: #64748b;
+    font-weight: var(--font-weight-medium);
+}
+
+/* Ticket row */
+.ticketRow {
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.ticketRow:hover td {
+    background-color: #f0f9f4 !important;
+}
+
+.ticketSubject {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ticketEmail {
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+.ticketAge {
+    color: var(--color-text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.messageCount {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+/* ─── Ticket Detail Page ─── */
+.detailHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+}
+
+.detailSubject {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--space-xs);
+}
+
+.detailMeta {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.detailActions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+}
+
+.selectSmall {
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-family: var(--font-body);
+    background: var(--color-white);
+    cursor: pointer;
+}
+
+/* Order context card */
+.orderCard {
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    border: 1px solid #bbf7d0;
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-xl);
+}
+
+.orderCardTitle {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: #166534;
+    margin-bottom: var(--space-sm);
+}
+
+.orderCardGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-md);
+}
+
+.orderCardItem {
+    font-size: 13px;
+}
+
+.orderCardLabel {
+    color: #64748b;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.orderCardValue {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+/* Message thread */
+.messageThread {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.message {
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    position: relative;
+}
+
+.messageInbound {
+    background: var(--color-white);
+    border: 1px solid var(--color-border-light);
+    margin-right: 60px;
+}
+
+.messageOutbound {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    margin-left: 60px;
+}
+
+.messageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.messageSender {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.messageBody {
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.aiBadge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background: #ede9fe;
+    color: #7c3aed;
+    margin-left: var(--space-xs);
+    font-weight: var(--font-weight-semibold);
+}
+
+.translationBox {
+    margin-top: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: #fdf4ff;
+    border: 1px solid #e9d5ff;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: #6b21a8;
+}
+
+.translationLabel {
+    font-size: 10px;
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    color: #9333ea;
+}
+
+/* Reply Box */
+.replyBox {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.replyTextarea {
+    width: 100%;
+    min-height: 120px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.replyTextarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.replyActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-md);
+}
+
+.replyBtnGroup {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.aiBtn {
+    padding: 8px 16px;
+    border: 1px solid #c084fc;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-body);
+    cursor: pointer;
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    color: #7c3aed;
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.aiBtn:hover {
+    background: linear-gradient(135deg, #f3e8ff, #ede9fe);
+    border-color: #a855f7;
+}
+
+.aiBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.translateBtn {
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    background: var(--color-white);
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+}
+
+.translateBtn:hover {
+    background-color: var(--color-bg-alt);
+}
+
+.sendBtn {
+    padding: 8px 24px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-body);
+    cursor: pointer;
+    background: var(--color-primary);
+    color: var(--color-white);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-fast);
+}
+
+.sendBtn:hover {
+    background: var(--color-primary-dark, #245a32);
+}
+
+.sendBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Back link */
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-md);
+    transition: color var(--transition-fast);
+}
+
+.backLink:hover {
+    color: var(--color-primary);
+}
+
+/* Unread badge for sidebar */
+.navBadge {
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    margin-left: auto;
+}
