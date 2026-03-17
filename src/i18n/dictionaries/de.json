@@ -188,6 +188,14 @@
         "ourStory": "Unsere Geschichte",
         "values": "Unsere Werte"
     },
+    "labResults": {
+        "title": "Laborergebnisse",
+        "subtitle": "Transparenz steht an erster Stelle. Sehen Sie sich die unabhängigen Laborergebnisse aller unserer Produkte an.",
+        "hoverHint": "Hover für Ergebnisse",
+        "clickHint": "Klicken zum Vergrößern",
+        "close": "Schließen",
+        "verifiedBy": "Unabhängig verifiziert"
+    },
     "faq": {
         "title": "Häufig gestellte Fragen",
         "aboutCbd": "Über CBD",

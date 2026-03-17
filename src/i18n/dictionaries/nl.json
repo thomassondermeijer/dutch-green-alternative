@@ -188,6 +188,14 @@
         "ourStory": "Ons verhaal",
         "values": "Onze waarden"
     },
+    "labResults": {
+        "title": "Laboratoriumresultaten",
+        "subtitle": "Transparantie staat voorop. Bekijk de onafhankelijke laboratoriumresultaten van al onze producten.",
+        "hoverHint": "Hover om resultaten te zien",
+        "clickHint": "Klik om te vergroten",
+        "close": "Sluiten",
+        "verifiedBy": "Onafhankelijk geverifieerd"
+    },
     "faq": {
         "title": "Veelgestelde vragen",
         "aboutCbd": "Over CBD",

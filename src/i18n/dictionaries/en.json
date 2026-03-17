@@ -188,6 +188,14 @@
         "ourStory": "Our Story",
         "values": "Our Values"
     },
+    "labResults": {
+        "title": "Lab Results",
+        "subtitle": "Transparency comes first. View the independent lab results for all our products.",
+        "hoverHint": "Hover to see results",
+        "clickHint": "Click to enlarge",
+        "close": "Close",
+        "verifiedBy": "Independently verified"
+    },
     "faq": {
         "title": "Frequently Asked Questions",
         "aboutCbd": "About CBD",
