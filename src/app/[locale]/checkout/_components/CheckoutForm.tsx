@@ -366,11 +366,70 @@ export function CheckoutForm({ locale, dict }: CheckoutFormProps) {
                     <h2 className={styles.sectionTitle}>{dict.checkout.paymentMethod || "Payment Method"}</h2>
                     <div className={styles.paymentMethods}>
                         {[
-                            { id: "ideal", label: "iDEAL", icon: "🏦" },
-                            { id: "bancontact", label: "Bancontact", icon: "💳" },
-                            { id: "creditcard", label: "Credit Card", icon: "💳" },
-                            { id: "sofortbanking", label: "SOFORT", icon: "🏛️" },
-                            { id: "invoice", label: dict.checkout.payOnInvoice || "Pay on Invoice", icon: "📄" },
+                            {
+                                id: "ideal",
+                                label: "iDEAL",
+                                icon: (
+                                    <svg width="28" height="24" viewBox="0 0 40 34" fill="none">
+                                        <rect width="40" height="34" rx="4" fill="#CC0066"/>
+                                        <path d="M12 7h8c5.5 0 10 4.5 10 10s-4.5 10-10 10h-8V7z" fill="#fff"/>
+                                        <circle cx="20" cy="17" r="5" fill="#CC0066"/>
+                                        <rect x="6" y="12" width="4" height="10" rx="1" fill="#fff"/>
+                                    </svg>
+                                ),
+                            },
+                            {
+                                id: "bancontact",
+                                label: "Bancontact",
+                                icon: (
+                                    <svg width="28" height="24" viewBox="0 0 40 34" fill="none">
+                                        <rect width="40" height="34" rx="4" fill="#005498"/>
+                                        <path d="M8 10h10c3 0 5 2 5 5s-2 5-5 5h-6l-1 4H8V10z" fill="#fff"/>
+                                        <path d="M18 14h8c3 0 5 2 5 5s-2 5-5 5h-6l-1 4h-4l3-14z" fill="#FFD800"/>
+                                    </svg>
+                                ),
+                            },
+                            {
+                                id: "creditcard",
+                                label: "Credit Card",
+                                icon: (
+                                    <svg width="36" height="24" viewBox="0 0 52 34" fill="none">
+                                        <rect width="24" height="34" rx="4" fill="#1A1F71"/>
+                                        <path d="M7 13l3-6h4l-3 6H7zm6 0l3-6h2l-3 6h-2z" fill="#fff"/>
+                                        <path d="M6 18l10 3v2L6 20v-2z" fill="#F7B600"/>
+                                        <rect x="28" width="24" height="34" rx="4" fill="#EB001B"/>
+                                        <circle cx="37" cy="17" r="8" fill="#EB001B"/>
+                                        <circle cx="43" cy="17" r="8" fill="#F79E1B"/>
+                                        <path d="M40 10.5a8 8 0 0 1 0 13 8 8 0 0 1 0-13z" fill="#FF5F00"/>
+                                    </svg>
+                                ),
+                            },
+                            {
+                                id: "sofortbanking",
+                                label: "SOFORT",
+                                icon: (
+                                    <svg width="28" height="24" viewBox="0 0 40 34" fill="none">
+                                        <rect width="40" height="34" rx="4" fill="#2B2B2B"/>
+                                        <rect x="5" y="7" width="20" height="20" rx="3" fill="#EF809F"/>
+                                        <path d="M10 17h10M10 13h7M10 21h5" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                                        <rect x="28" y="10" width="7" height="14" rx="2" fill="#EF809F"/>
+                                        <circle cx="31.5" cy="21" r="1.5" fill="#fff"/>
+                                    </svg>
+                                ),
+                            },
+                            {
+                                id: "invoice",
+                                label: dict.checkout.payOnInvoice || "Pay on Invoice",
+                                icon: (
+                                    <svg width="28" height="24" viewBox="0 0 40 34" fill="none">
+                                        <rect width="40" height="34" rx="4" fill="#F3F4F6"/>
+                                        <rect x="10" y="5" width="20" height="24" rx="2" fill="#fff" stroke="#D1D5DB" strokeWidth="1.5"/>
+                                        <path d="M14 11h12M14 15h12M14 19h8M14 23h5" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round"/>
+                                        <circle cx="27" cy="23" r="3" fill="#2D5A3D"/>
+                                        <path d="M25.5 23l1 1 2-2" stroke="#fff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                ),
+                            },
                         ].map((method) => (
                             <label
                                 key={method.id}
