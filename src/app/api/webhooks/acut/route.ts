@@ -39,11 +39,14 @@ function getClientIp(req: NextRequest): string | null {
  */
 export async function POST(req: NextRequest) {
     try {
-        // 1. IP whitelist check
+        // 1. IP whitelist check (log-only mode while testing)
         const clientIp = getClientIp(req);
         if (!clientIp || !ALLOWED_IPS.has(clientIp)) {
-            console.warn(`[Acut Webhook] Rejected IP: ${clientIp}`);
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            console.warn(`[Acut Webhook] Unknown IP: ${clientIp} — allowing for testing`);
+            // TODO: Re-enable blocking after confirming correct IPs
+            // return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        } else {
+            console.log(`[Acut Webhook] Verified IP: ${clientIp}`);
         }
 
         // 2. Optional shared secret check
