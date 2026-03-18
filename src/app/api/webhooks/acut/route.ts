@@ -149,9 +149,9 @@ export async function POST(req: NextRequest) {
 
         console.log(`[Acut Webhook] Updated order ${order.order_number}: tracking=${trackingNumber}`);
 
-        // 6. Send shipping notification email (if we have a tracking number)
+        // 6. Send shipping notification email (always, even without tracking)
         let emailSent = false;
-        if (trackingNumber && order.customer_email) {
+        if (order.customer_email) {
             const addr = order.shipping_address || {};
             const customerName = `${addr.first_name || ""} ${addr.last_name || ""}`.trim() || "Customer";
             const locale = order.language || "de";
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
             const html = buildShippingNotificationEmail({
                 customerName,
                 orderNumber: order.order_number,
-                trackingNumber,
+                trackingNumber: trackingNumber || undefined,
                 trackingUrl: trackingUrl || undefined,
                 locale,
             });
