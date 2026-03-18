@@ -14,7 +14,7 @@ const labels: Record<string, Record<string, string>> = {
     orderNumber: "Bestellnummer",
     tracking: "Sendungsverfolgung",
     trackBtn: "Sendung verfolgen",
-    noTracking: "Sie erhalten eine separate E-Mail mit der Sendungsnummer, sobald diese verfügbar ist.",
+    noTracking: "Ihre Bestellung wurde über einen Standardversand ohne Sendungsverfolgung versendet.",
     footer: "Bei Fragen kontaktieren Sie uns gerne unter info@dutchgreenalternative.nl",
   },
   nl: {
@@ -24,7 +24,7 @@ const labels: Record<string, Record<string, string>> = {
     orderNumber: "Bestelnummer",
     tracking: "Track & Trace",
     trackBtn: "Volg de zending",
-    noTracking: "U ontvangt een aparte e-mail met het trackingnummer zodra dit beschikbaar is.",
+    noTracking: "Uw bestelling is verzonden via standaardverzending zonder track & trace.",
     footer: "Bij vragen kunt u ons bereiken via info@dutchgreenalternative.nl",
   },
   en: {
@@ -34,7 +34,7 @@ const labels: Record<string, Record<string, string>> = {
     orderNumber: "Order Number",
     tracking: "Tracking",
     trackBtn: "Track Shipment",
-    noTracking: "You will receive a separate email with the tracking number once it becomes available.",
+    noTracking: "Your order has been shipped via standard delivery without tracking.",
     footer: "For questions, contact us at info@dutchgreenalternative.nl",
   },
 };
