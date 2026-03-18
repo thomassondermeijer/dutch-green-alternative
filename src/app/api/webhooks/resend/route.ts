@@ -39,7 +39,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: true, skipped: "no email_id" });
         }
 
-        // Look up the email_log entry by resend_id
+        // Auto-suppress bounced/complained emails (ALL emails, not just campaigns)
+        if (eventType === "bounced" || eventType === "complained") {
+            const recipientEmail = data?.to?.[0] || data?.email;
+            if (recipientEmail) {
+                await supabaseAdmin.from("email_suppression").upsert(
+                    {
+                        email: recipientEmail.toLowerCase(),
+                        reason: eventType,
+                        source: "webhook",
+                    },
+                    { onConflict: "email,reason" }
+                );
+                console.log(`[Resend Webhook] Auto-suppressed ${recipientEmail} (${eventType})`);
+            }
+        }
+
+        // Look up the email_log entry by resend_id for campaign stats
         const { data: logEntry } = await supabaseAdmin
             .from("email_log")
             .select("id, campaign_id")
@@ -47,8 +63,8 @@ export async function POST(req: NextRequest) {
             .maybeSingle();
 
         if (!logEntry?.campaign_id) {
-            // Not a marketing email, acknowledge
-            return NextResponse.json({ ok: true, skipped: "no campaign match" });
+            // Not a marketing email — suppression already handled above
+            return NextResponse.json({ ok: true, suppressed: eventType === "bounced" || eventType === "complained" });
         }
 
         // Insert event

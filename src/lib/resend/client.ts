@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { isEmailSuppressed, filterSuppressedEmails } from "./suppression";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "info@dutchgreenalternative.nl";
@@ -11,15 +12,25 @@ export type EmailTemplate =
     | "abandoned-cart"
     | "review-request";
 
+type EmailType = "marketing" | "transactional";
+
 type SendEmailOptions = {
     to: string;
     subject: string;
     html: string;
     replyTo?: string;
+    emailType?: EmailType;
 };
 
-export async function sendEmail({ to, subject, html, replyTo }: SendEmailOptions) {
+export async function sendEmail({ to, subject, html, replyTo, emailType = "transactional" }: SendEmailOptions) {
     try {
+        // Check suppression list before sending
+        const suppressed = await isEmailSuppressed(to, emailType);
+        if (suppressed) {
+            console.log(`[Resend] Skipping suppressed email (${emailType}): ${to}`);
+            return { success: false, error: "suppressed", suppressed: true };
+        }
+
         const { data, error } = await resend.emails.send({
             from: `${FROM_NAME} <${FROM_EMAIL}>`,
             to,
@@ -49,6 +60,7 @@ export type BatchEmailItem = {
     subject: string;
     html: string;
     replyTo?: string;
+    emailType?: EmailType;
 };
 
 export type BatchResult = {
@@ -58,10 +70,30 @@ export type BatchResult = {
     error?: unknown;
 };
 
-export async function sendBatchEmails(emails: BatchEmailItem[]): Promise<BatchResult[]> {
+export async function sendBatchEmails(emails: BatchEmailItem[], emailType: EmailType = "marketing"): Promise<BatchResult[]> {
     if (emails.length === 0) return [];
 
-    const payload = emails.map((e) => ({
+    // Filter out suppressed emails
+    const suppressedSet = await filterSuppressedEmails(
+        emails.map((e) => e.to),
+        emailType
+    );
+
+    const results: BatchResult[] = [];
+    const unsuppressed: BatchEmailItem[] = [];
+
+    for (const e of emails) {
+        if (suppressedSet.has(e.to.toLowerCase())) {
+            console.log(`[Resend Batch] Skipping suppressed: ${e.to}`);
+            results.push({ to: e.to, success: false, error: "suppressed" });
+        } else {
+            unsuppressed.push(e);
+        }
+    }
+
+    if (unsuppressed.length === 0) return results;
+
+    const payload = unsuppressed.map((e) => ({
         from: `${FROM_NAME} <${FROM_EMAIL}>`,
         to: e.to,
         subject: e.subject,
@@ -74,20 +106,21 @@ export async function sendBatchEmails(emails: BatchEmailItem[]): Promise<BatchRe
 
         if (error) {
             console.error("[Resend Batch] API error:", error);
-            // All failed — return failure for every email
-            return emails.map((e) => ({ to: e.to, success: false, error }));
+            // All unsuppressed failed — combine with suppressed results
+            return [...results, ...unsuppressed.map((e) => ({ to: e.to, success: false, error }))];
         }
 
         // data.data is an array of { id } for each email sent
-        const results = data?.data || [];
-        return emails.map((e, i) => ({
+        const sentResults = data?.data || [];
+        const batchResults = unsuppressed.map((e, i) => ({
             to: e.to,
             success: true,
-            id: results[i]?.id,
+            id: sentResults[i]?.id,
         }));
+        return [...results, ...batchResults];
     } catch (err) {
         console.error("[Resend Batch] Error:", err);
-        return emails.map((e) => ({ to: e.to, success: false, error: err }));
+        return [...results, ...unsuppressed.map((e) => ({ to: e.to, success: false, error: err }))];
     }
 }
 
