@@ -284,7 +284,7 @@ export default function MarketingPage() {
         setSending(true);
         try {
             const body: Record<string, string> = { campaignId: selectedCampaign.id };
-            if (isTest && testEmail) body.testEmail = testEmail;
+            if (isTest && testEmail) { body.testEmail = testEmail; body.testLocale = locale; }
             const res = await fetch("/api/admin/marketing/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

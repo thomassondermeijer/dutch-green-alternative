@@ -88,7 +88,7 @@ export async function PUT(req: NextRequest) {
 // POST: send campaign using Resend Batch API
 export async function POST(req: NextRequest) {
     try {
-        const { campaignId, testEmail } = await req.json();
+        const { campaignId, testEmail, testLocale } = await req.json();
         if (!campaignId) return NextResponse.json({ error: "campaignId required" }, { status: 400 });
 
         const { data: campaign, error: campErr } = await supabaseAdmin
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
         let recipients: Recipient[] = [];
         if (testEmail) {
-            recipients = [{ email: testEmail, first_name: "Test", language_pref: "de" }];
+            recipients = [{ email: testEmail, first_name: "Test", language_pref: testLocale || "de" }];
         } else {
             recipients = await getFilteredRecipients((campaign.audience_filter || {}) as AudienceFilter);
         }
