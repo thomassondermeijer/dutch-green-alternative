@@ -92,6 +92,9 @@ export default function MarketingPage() {
     const [filteredCount, setFilteredCount] = useState<number | null>(null);
     const [savedCoupon, setSavedCoupon] = useState<{ code: string; discount: number } | null>(null);
     const [scheduleDate, setScheduleDate] = useState("");
+    const [editingBody, setEditingBody] = useState(false);
+    const [editBodyDraft, setEditBodyDraft] = useState("");
+    const [savingBody, setSavingBody] = useState(false);
 
     // Track which articles already have campaigns
     const usedArticleIds = new Set(campaigns.map(c => c.article_id).filter(Boolean));
@@ -567,6 +570,20 @@ export default function MarketingPage() {
                                         background: showSource ? "#1e293b" : "white",
                                         color: showSource ? "white" : "#64748b",
                                     }}>{showSource ? "👁 Preview" : "</> Source"}</button>
+                                    {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved") && (
+                                        <button onClick={() => {
+                                            if (!editingBody) {
+                                                const bodyKey = `body_html_${locale}` as keyof Campaign;
+                                                setEditBodyDraft((selectedCampaign[bodyKey] as string) || selectedCampaign.body_html_de || "");
+                                            }
+                                            setEditingBody(!editingBody);
+                                        }} style={{
+                                            ...btnSecondary,
+                                            background: editingBody ? "#f59e0b" : "white",
+                                            color: editingBody ? "white" : "#64748b",
+                                            borderColor: editingBody ? "#f59e0b" : "#e2e8f0",
+                                        }}>✏️ Edit Copy</button>
+                                    )}
                                 </div>
                             </div>
 
@@ -801,24 +818,56 @@ export default function MarketingPage() {
                                 </div>
                             )}
 
-                            {/* Preview iframe or source */}
-                            <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
-                                <div style={{ background: "#f8fafc", padding: "10px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", gap: "6px", alignItems: "center" }}>
-                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
-                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
-                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
-                                    <span style={{ marginLeft: "1rem", color: "#94a3b8", fontSize: "0.75rem" }}>
-                                        {showSource ? "HTML Source" : "Email Preview"} — {locale.toUpperCase()}
-                                    </span>
+                            {/* Preview iframe, source, or edit mode */}
+                            {editingBody ? (
+                                <div style={{ border: "1px solid #f59e0b", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(245,158,11,0.15)" }}>
+                                    <div style={{ background: "#fffbeb", padding: "10px 16px", borderBottom: "1px solid #fde68a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <span style={{ color: "#92400e", fontSize: "0.8rem", fontWeight: 600 }}>
+                                            ✏️ Editing Body HTML — {locale.toUpperCase()}
+                                        </span>
+                                        <div style={{ display: "flex", gap: "8px" }}>
+                                            <button onClick={() => { setEditingBody(false); }} style={{ ...btnSecondary, fontSize: "0.8rem", padding: "5px 12px" }}>Cancel</button>
+                                            <button disabled={savingBody} onClick={async () => {
+                                                setSavingBody(true);
+                                                try {
+                                                    const supabase = createClient();
+                                                    const bodyKey = `body_html_${locale}`;
+                                                    await supabase.from("marketing_campaigns").update({
+                                                        [bodyKey]: editBodyDraft,
+                                                    }).eq("id", selectedCampaign.id);
+                                                    setSelectedCampaign({ ...selectedCampaign, [bodyKey]: editBodyDraft } as Campaign);
+                                                    showMsg("success", `Body (${locale.toUpperCase()}) saved!`);
+                                                    setEditingBody(false);
+                                                    loadCampaigns();
+                                                } catch { showMsg("error", "Save failed"); }
+                                                setSavingBody(false);
+                                            }} style={{ ...btnPrimary, fontSize: "0.8rem", padding: "5px 12px", opacity: savingBody ? 0.7 : 1 }}>
+                                                {savingBody ? "Saving..." : "💾 Save"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <textarea value={editBodyDraft} onChange={e => setEditBodyDraft(e.target.value)}
+                                        style={{ width: "100%", height: "500px", border: "none", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "13px", lineHeight: 1.6, resize: "vertical", background: "#1e293b", color: "#e2e8f0", outline: "none", boxSizing: "border-box" }} />
                                 </div>
-                                {showSource ? (
-                                    <textarea value={getPreviewHtml(selectedCampaign)} readOnly
-                                        style={{ width: "100%", height: "700px", border: "none", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: 1.5, resize: "none", background: "#1e293b", color: "#e2e8f0", outline: "none" }} />
-                                ) : (
-                                    <iframe srcDoc={getPreviewHtml(selectedCampaign)}
-                                        style={{ width: "100%", height: "700px", border: "none", background: "#f3f4f6" }} title="Campaign Preview" />
-                                )}
-                            </div>
+                            ) : (
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
+                                    <div style={{ background: "#f8fafc", padding: "10px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", gap: "6px", alignItems: "center" }}>
+                                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
+                                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
+                                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
+                                        <span style={{ marginLeft: "1rem", color: "#94a3b8", fontSize: "0.75rem" }}>
+                                            {showSource ? "HTML Source" : "Email Preview"} — {locale.toUpperCase()}
+                                        </span>
+                                    </div>
+                                    {showSource ? (
+                                        <textarea value={getPreviewHtml(selectedCampaign)} readOnly
+                                            style={{ width: "100%", height: "700px", border: "none", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: 1.5, resize: "none", background: "#1e293b", color: "#e2e8f0", outline: "none" }} />
+                                    ) : (
+                                        <iframe srcDoc={getPreviewHtml(selectedCampaign)}
+                                            style={{ width: "100%", height: "700px", border: "none", background: "#f3f4f6" }} title="Campaign Preview" />
+                                    )}
+                                </div>
+                            )}
 
                             {/* Action buttons */}
                             <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
