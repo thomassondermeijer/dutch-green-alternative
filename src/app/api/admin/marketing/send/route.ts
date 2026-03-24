@@ -52,7 +52,7 @@ type AudienceFilter = {
     never_purchased?: boolean;
 };
 
-type Recipient = { email: string; first_name: string | null; language_pref: string };
+type Recipient = { email: string; first_name: string | null; language_pref: string; total_spent?: number };
 
 async function getFilteredRecipients(filter: AudienceFilter): Promise<Recipient[]> {
     const { data, error } = await supabaseAdmin.rpc("filter_marketing_recipients", {
