@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
 import styles from "../admin.module.css";
@@ -93,8 +93,8 @@ export default function MarketingPage() {
     const [savedCoupon, setSavedCoupon] = useState<{ code: string; discount: number } | null>(null);
     const [scheduleDate, setScheduleDate] = useState("");
     const [editingBody, setEditingBody] = useState(false);
-    const [editBodyDraft, setEditBodyDraft] = useState("");
     const [savingBody, setSavingBody] = useState(false);
+    const editRef = useRef<HTMLDivElement>(null);
 
     // Track which articles already have campaigns
     const usedArticleIds = new Set(campaigns.map(c => c.article_id).filter(Boolean));
@@ -574,10 +574,6 @@ export default function MarketingPage() {
                                     }}>{showSource ? "👁 Preview" : "</> Source"}</button>
                                     {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved") && (
                                         <button onClick={() => {
-                                            if (!editingBody) {
-                                                const bodyKey = `body_html_${locale}` as keyof Campaign;
-                                                setEditBodyDraft((selectedCampaign[bodyKey] as string) || selectedCampaign.body_html_de || "");
-                                            }
                                             setEditingBody(!editingBody);
                                         }} style={{
                                             ...btnSecondary,
@@ -825,19 +821,20 @@ export default function MarketingPage() {
                                 <div style={{ border: "1px solid #f59e0b", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(245,158,11,0.15)" }}>
                                     <div style={{ background: "#fffbeb", padding: "10px 16px", borderBottom: "1px solid #fde68a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                         <span style={{ color: "#92400e", fontSize: "0.8rem", fontWeight: 600 }}>
-                                            ✏️ Editing Body HTML — {locale.toUpperCase()}
+                                            ✏️ Editing — {locale.toUpperCase()} (click text to edit)
                                         </span>
                                         <div style={{ display: "flex", gap: "8px" }}>
                                             <button onClick={() => { setEditingBody(false); }} style={{ ...btnSecondary, fontSize: "0.8rem", padding: "5px 12px" }}>Cancel</button>
                                             <button disabled={savingBody} onClick={async () => {
                                                 setSavingBody(true);
                                                 try {
+                                                    const html = editRef.current?.innerHTML || "";
                                                     const supabase = createClient();
                                                     const bodyKey = `body_html_${locale}`;
                                                     await supabase.from("marketing_campaigns").update({
-                                                        [bodyKey]: editBodyDraft,
+                                                        [bodyKey]: html,
                                                     }).eq("id", selectedCampaign.id);
-                                                    setSelectedCampaign({ ...selectedCampaign, [bodyKey]: editBodyDraft } as Campaign);
+                                                    setSelectedCampaign({ ...selectedCampaign, [bodyKey]: html } as Campaign);
                                                     showMsg("success", `Body (${locale.toUpperCase()}) saved!`);
                                                     setEditingBody(false);
                                                     loadCampaigns();
@@ -848,8 +845,23 @@ export default function MarketingPage() {
                                             </button>
                                         </div>
                                     </div>
-                                    <textarea value={editBodyDraft} onChange={e => setEditBodyDraft(e.target.value)}
-                                        style={{ width: "100%", height: "500px", border: "none", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "13px", lineHeight: 1.6, resize: "vertical", background: "#1e293b", color: "#e2e8f0", outline: "none", boxSizing: "border-box" }} />
+                                    <div
+                                        ref={editRef}
+                                        contentEditable
+                                        suppressContentEditableWarning
+                                        dangerouslySetInnerHTML={{ __html: (() => {
+                                            const bodyKey = `body_html_${locale}` as keyof Campaign;
+                                            let html = ((selectedCampaign[bodyKey] as string) || selectedCampaign.body_html_de || "");
+                                            html = html.replace(/\{FIRST_NAME\}/g, "Max");
+                                            html = html.replace(/\{DISCOUNT\}/g, String(selectedCampaign.coupon_discount));
+                                            return html;
+                                        })() }}
+                                        style={{
+                                            padding: "32px 40px", minHeight: "400px", outline: "none", background: "#ffffff",
+                                            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                                            fontSize: "15px", lineHeight: 1.7, color: "#374151", cursor: "text",
+                                        }}
+                                    />
                                 </div>
                             ) : (
                                 <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
