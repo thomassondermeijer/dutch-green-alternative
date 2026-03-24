@@ -103,6 +103,13 @@ export async function POST(req: NextRequest) {
 
         const product = PRODUCTS[campaign.recommended_product_slug] || { name: "CBD Oil", price: 29.95 };
 
+        // Fetch coupon expiry for the discount banner
+        let couponValidUntil: string | undefined;
+        if (campaign.coupon_code) {
+            const { data: couponData } = await supabaseAdmin.from("coupons").select("valid_until").eq("code", campaign.coupon_code).maybeSingle();
+            couponValidUntil = couponData?.valid_until || undefined;
+        }
+
         let recipients: Recipient[] = [];
         if (testEmail) {
             recipients = [{ email: testEmail, first_name: "Test", language_pref: "de" }];
@@ -129,6 +136,8 @@ export async function POST(req: NextRequest) {
                 productPrice: product.price,
                 couponCode: campaign.coupon_code,
                 couponDiscount: campaign.coupon_discount,
+                couponReason: campaign.coupon_reason || "",
+                couponValidUntil,
                 locale,
             });
 

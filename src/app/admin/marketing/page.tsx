@@ -349,6 +349,8 @@ export default function MarketingPage() {
             productPrice: product.price,
             couponCode: camp.coupon_code,
             couponDiscount: camp.coupon_discount,
+            couponReason: camp.coupon_reason || "Seasonal",
+            couponValidUntil: new Date(Date.now() + 30 * 86400000).toISOString(),
             locale,
         });
     };
