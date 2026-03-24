@@ -21,8 +21,6 @@ const PRODUCTS: Record<string, { name: string; price: number }> = {
 
 /**
  * Convert Supabase storage URLs to domain-proxied URLs for better email deliverability.
- * e.g. https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/marketing/img.png
- *   -> https://dutchgreenalternative.nl/email-assets/marketing/img.png
  */
 const SUPABASE_STORAGE_PREFIX = "https://xburabmzlolrnywcyxwz.supabase.co/storage/v1/object/public/DGA/";
 const DOMAIN_ASSET_PREFIX = "https://dutchgreenalternative.nl/email-assets/";
@@ -36,11 +34,12 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
 }
 
 /**
- * Resend Batch API allows up to 100 emails per call.
- * We use 100 per batch with 1.5s delay between batches to stay safe.
+ * Resend Free Plan: 100 emails/day, 3000/month.
+ * We send up to DAILY_LIMIT per cron run and resume the next day.
  */
-const BATCH_SIZE = 100;
-const BATCH_DELAY = 1500;
+const DAILY_LIMIT = 95; // slightly under 100 to leave room for test emails
+const BATCH_SIZE = 50;  // smaller batches for reliability
+const BATCH_DELAY = 2000;
 const NAME_FALLBACK: Record<string, string> = { de: "Kunde", nl: "Klant", en: "Customer" };
 
 type AudienceFilter = {
@@ -85,7 +84,36 @@ export async function PUT(req: NextRequest) {
     }
 }
 
-// POST: send campaign using Resend Batch API
+/**
+ * Get how many marketing emails were sent today (UTC).
+ */
+async function getEmailsSentToday(): Promise<number> {
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const { count } = await supabaseAdmin
+        .from("email_log")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sent")
+        .gte("created_at", todayStart.toISOString());
+
+    return count || 0;
+}
+
+/**
+ * Get emails already sent for this campaign (to avoid duplicates on retry).
+ */
+async function getAlreadySentEmails(campaignId: string): Promise<Set<string>> {
+    const { data } = await supabaseAdmin
+        .from("email_log")
+        .select("recipient")
+        .eq("campaign_id", campaignId)
+        .eq("status", "sent");
+
+    return new Set((data || []).map((d) => d.recipient.toLowerCase()));
+}
+
+// POST: send campaign using Resend Batch API (with daily limit)
 export async function POST(req: NextRequest) {
     try {
         const { campaignId, testEmail, testLocale } = await req.json();
@@ -95,10 +123,8 @@ export async function POST(req: NextRequest) {
             .from("marketing_campaigns").select("*").eq("id", campaignId).single();
 
         if (campErr || !campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
-        if (!testEmail && campaign.status !== "approved") return NextResponse.json({ error: "Campaign must be approved first" }, { status: 400 });
-
-        if (!testEmail) {
-            await supabaseAdmin.from("marketing_campaigns").update({ status: "sending" }).eq("id", campaignId);
+        if (!testEmail && !["approved", "sending"].includes(campaign.status)) {
+            return NextResponse.json({ error: "Campaign must be approved first" }, { status: 400 });
         }
 
         const product = PRODUCTS[campaign.recommended_product_slug] || { name: "CBD Oil", price: 29.95 };
@@ -115,9 +141,39 @@ export async function POST(req: NextRequest) {
             recipients = [{ email: testEmail, first_name: "Test", language_pref: testLocale || "de" }];
         } else {
             recipients = await getFilteredRecipients((campaign.audience_filter || {}) as AudienceFilter);
+
+            // Exclude recipients already successfully sent for this campaign
+            const alreadySent = await getAlreadySentEmails(campaignId);
+            if (alreadySent.size > 0) {
+                const before = recipients.length;
+                recipients = recipients.filter((r) => !alreadySent.has(r.email.toLowerCase()));
+                console.log(`[Marketing Send] Skipped ${before - recipients.length} already-sent recipients`);
+            }
+
+            // Check daily limit
+            const sentToday = await getEmailsSentToday();
+            const remaining = Math.max(0, DAILY_LIMIT - sentToday);
+
+            if (remaining === 0) {
+                // Daily limit reached — keep as "sending" for tomorrow
+                await supabaseAdmin.from("marketing_campaigns").update({ status: "sending" }).eq("id", campaignId);
+                return NextResponse.json({
+                    success: true, sent: 0, failed: 0, remaining: recipients.length,
+                    message: `Daily limit reached (${DAILY_LIMIT}/day). ${recipients.length} remaining — will continue tomorrow.`,
+                });
+            }
+
+            // Cap recipients to daily remaining
+            if (recipients.length > remaining) {
+                console.log(`[Marketing Send] Capping to ${remaining} (daily limit). ${recipients.length - remaining} will be sent tomorrow.`);
+                recipients = recipients.slice(0, remaining);
+            }
+
+            // Set status to "sending"
+            await supabaseAdmin.from("marketing_campaigns").update({ status: "sending" }).eq("id", campaignId);
         }
 
-        // 1. Build all email payloads
+        // 1. Build email payloads
         type PreparedEmail = { recipient: Recipient; locale: string; subject: string; batchItem: BatchEmailItem };
         const prepared: PreparedEmail[] = recipients.map((recipient) => {
             const locale = recipient.language_pref || "de";
@@ -147,7 +203,7 @@ export async function POST(req: NextRequest) {
             };
         });
 
-        // 2. Send in batches of 100 using Resend Batch API
+        // 2. Send in batches
         let sentCount = 0;
         let failedCount = 0;
 
@@ -169,23 +225,44 @@ export async function POST(req: NextRequest) {
                 metadata: { coupon: campaign.coupon_code, product: campaign.recommended_product_slug },
             }));
 
-            // Batch insert logs
             await supabaseAdmin.from("email_log").insert(logEntries);
 
             results.forEach((r) => {
                 if (r.success) sentCount++; else failedCount++;
             });
 
-            // Wait between batches to stay within rate limits
             if (i + BATCH_SIZE < prepared.length) {
                 await new Promise((r) => setTimeout(r, BATCH_DELAY));
             }
         }
 
         if (!testEmail) {
-            await supabaseAdmin.from("marketing_campaigns").update({
-                status: "sent", sent_at: new Date().toISOString(), sent_count: sentCount, failed_count: failedCount,
-            }).eq("id", campaignId);
+            // Check if all recipients have been sent
+            const allRecipients = await getFilteredRecipients((campaign.audience_filter || {}) as AudienceFilter);
+            const allSent = await getAlreadySentEmails(campaignId);
+            const unsent = allRecipients.filter((r) => !allSent.has(r.email.toLowerCase()));
+            const totalSent = allSent.size;
+
+            if (unsent.length === 0) {
+                // All done!
+                await supabaseAdmin.from("marketing_campaigns").update({
+                    status: "sent", sent_at: new Date().toISOString(),
+                    sent_count: totalSent, failed_count: failedCount,
+                }).eq("id", campaignId);
+            } else {
+                // More to send tomorrow
+                await supabaseAdmin.from("marketing_campaigns").update({
+                    status: "sending", sent_count: totalSent, failed_count: failedCount,
+                }).eq("id", campaignId);
+            }
+
+            return NextResponse.json({
+                success: true, sent: sentCount, failed: failedCount,
+                totalSent, remaining: unsent.length,
+                message: unsent.length > 0
+                    ? `Sent ${sentCount} today (${totalSent} total). ${unsent.length} remaining — will continue tomorrow.`
+                    : `All ${totalSent} emails sent!`,
+            });
         }
 
         return NextResponse.json({ success: true, sent: sentCount, failed: failedCount });

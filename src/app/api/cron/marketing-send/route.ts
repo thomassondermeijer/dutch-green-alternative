@@ -8,7 +8,9 @@ const supabaseAdmin = createClient(
 
 /**
  * GET /api/cron/marketing-send
- * Hourly cron: auto-sends approved campaigns where scheduled_for <= now
+ * Hourly cron: sends approved/sending campaigns where scheduled_for <= now.
+ * Handles daily limit by only sending up to 95 emails per day (Resend free plan = 100/day).
+ * Campaigns with status "sending" are partially sent — the cron continues them the next day.
  */
 export async function GET(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
@@ -20,13 +22,14 @@ export async function GET(req: NextRequest) {
     try {
         const now = new Date().toISOString();
 
-        // Find approved campaigns ready to send
+        // Find campaigns ready to send:
+        // - "approved" with scheduled_for <= now (new campaigns)
+        // - "sending" (partially sent, continue daily)
         const { data: campaigns } = await supabaseAdmin
             .from("marketing_campaigns")
-            .select("id")
-            .eq("status", "approved")
-            .not("scheduled_for", "is", null)
-            .lte("scheduled_for", now);
+            .select("id, status")
+            .or(`and(status.eq.approved,scheduled_for.lte.${now}),status.eq.sending`)
+            .not("scheduled_for", "is", null);
 
         if (!campaigns || campaigns.length === 0) {
             return NextResponse.json({ message: "No campaigns to send", sent: 0 });
@@ -35,7 +38,6 @@ export async function GET(req: NextRequest) {
         const results = [];
 
         for (const campaign of campaigns) {
-            // Call the send endpoint internally
             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "http://localhost:3000";
             const res = await fetch(`${baseUrl}/api/admin/marketing/send`, {
                 method: "POST",

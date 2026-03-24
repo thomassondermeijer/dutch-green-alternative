@@ -909,8 +909,15 @@ export default function MarketingPage() {
                                         </span>
                                     </>
                                 )}
-                                {selectedCampaign.status === "approved" && selectedCampaign.scheduled_for && (
+                                {(selectedCampaign.status === "approved" || selectedCampaign.status === "sending") && selectedCampaign.scheduled_for && (
                                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                                        {selectedCampaign.status === "sending" && (
+                                            <div style={{ background: "#fef3c7", borderRadius: "8px", padding: "8px 16px", border: "1px solid #fde68a" }}>
+                                                <span style={{ fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>
+                                                    📤 Sending: {selectedCampaign.sent_count || 0} sent — continues daily (limit: 95/day)
+                                                </span>
+                                            </div>
+                                        )}
                                         <div style={{ background: "#dbeafe", borderRadius: "8px", padding: "8px 16px" }}>
                                             <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
                                                 📅 {new Date(selectedCampaign.scheduled_for).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
@@ -940,7 +947,7 @@ export default function MarketingPage() {
                                     <button onClick={() => handleDelete(selectedCampaign.id)} style={btnDanger}>🗑️ Delete</button>
                                 )}
 
-                                {(selectedCampaign.status === "approved" || selectedCampaign.status === "draft") && (
+                                {(selectedCampaign.status === "approved" || selectedCampaign.status === "draft" || selectedCampaign.status === "sending") && (
                                     <div style={{ display: "flex", gap: "8px", alignItems: "center", marginLeft: "auto" }}>
                                         <input type="email" placeholder="test@email.com" value={testEmail}
                                             onChange={(e) => setTestEmail(e.target.value)}
