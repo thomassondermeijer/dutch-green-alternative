@@ -882,6 +882,9 @@ export default function MarketingPage() {
                                             <input type="datetime-local" value={scheduleDate}
                                                 onChange={(e) => setScheduleDate(e.target.value)}
                                                 style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.8rem", fontFamily: "inherit" }} />
+                                            <span style={{ fontSize: "0.7rem", color: "#94a3b8", whiteSpace: "nowrap" }}>
+                                                {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                                            </span>
                                             {scheduleDate && (
                                                 <button onClick={() => handleApprove(new Date(scheduleDate).toISOString())}
                                                     style={{ ...btnSecondary, fontSize: "0.8rem", padding: "6px 12px" }}>
@@ -906,6 +909,19 @@ export default function MarketingPage() {
                                                 🏷️ {selectedCampaign.coupon_code} ({selectedCampaign.coupon_discount}%)
                                             </span>
                                         </div>
+                                        <button onClick={async () => {
+                                            try {
+                                                const supabase = createClient();
+                                                await supabase.from("marketing_campaigns").update({
+                                                    status: "draft", scheduled_for: null,
+                                                }).eq("id", selectedCampaign.id);
+                                                setSelectedCampaign({ ...selectedCampaign, status: "draft", scheduled_for: null });
+                                                showMsg("success", "Reverted to draft — you can now make adjustments");
+                                                loadCampaigns();
+                                            } catch { showMsg("error", "Revert failed"); }
+                                        }} style={{ ...btnSecondary, fontSize: "0.8rem", padding: "6px 14px", borderColor: "#fde68a", background: "#fffbeb", color: "#92400e" }}>
+                                            ↩️ Revert to Draft
+                                        </button>
                                     </div>
                                 )}
                                 {(selectedCampaign.status === "draft" || selectedCampaign.status === "approved" || selectedCampaign.status === "generating") && (
