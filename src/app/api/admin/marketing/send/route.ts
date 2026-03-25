@@ -37,7 +37,7 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
  * Resend Free Plan: 100 emails/day, 3000/month.
  * We send up to DAILY_LIMIT per cron run and resume the next day.
  */
-const DAILY_LIMIT = 95; // slightly under 100 to leave room for test emails
+const DAILY_LIMIT = 90; // under 100 to leave room for transactional emails (order confirmations, support replies)
 const BATCH_SIZE = 50;  // smaller batches for reliability
 const BATCH_DELAY = 2000;
 const NAME_FALLBACK: Record<string, string> = { de: "Kunde", nl: "Klant", en: "Customer" };
@@ -85,7 +85,8 @@ export async function PUT(req: NextRequest) {
 }
 
 /**
- * Get how many marketing emails were sent today (UTC).
+ * Get how many emails were sent today (UTC) across ALL types.
+ * This counts against the Resend 100/day free plan limit.
  */
 async function getEmailsSentToday(): Promise<number> {
     const todayStart = new Date();
@@ -95,8 +96,9 @@ async function getEmailsSentToday(): Promise<number> {
         .from("email_log")
         .select("id", { count: "exact", head: true })
         .eq("status", "sent")
-        .gte("created_at", todayStart.toISOString());
+        .gte("sent_at", todayStart.toISOString());
 
+    console.log(`[Marketing Send] Emails sent today (UTC): ${count || 0}`);
     return count || 0;
 }
 
