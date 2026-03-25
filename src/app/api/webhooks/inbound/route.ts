@@ -10,15 +10,16 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 
 /**
  * Simple language detection based on common words.
+ * Checks both body text and subject for robustness with short messages.
  */
-function detectLanguage(text: string): string {
-    const lower = text.toLowerCase();
-    const deWords = ["und", "ich", "die", "der", "das", "ist", "nicht", "ein", "eine", "mit", "habe", "mein", "bestellung", "lieferung"];
-    const nlWords = ["en", "ik", "de", "het", "een", "niet", "van", "dat", "mijn", "bestelling", "heb", "graag", "bedankt"];
-    const deCount = deWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `)).length;
-    const nlCount = nlWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `)).length;
-    if (deCount > nlCount && deCount > 2) return "de";
-    if (nlCount > deCount && nlCount > 2) return "nl";
+function detectLanguage(text: string, subject?: string): string {
+    const lower = `${subject || ""} ${text}`.toLowerCase();
+    const deWords = ["und", "ich", "die", "der", "das", "ist", "nicht", "ein", "eine", "mit", "habe", "mein", "bestellung", "lieferung", "hallo", "bitte", "danke", "produkt", "produkte"];
+    const nlWords = ["en", "ik", "de", "het", "een", "niet", "van", "dat", "mijn", "bestelling", "heb", "graag", "bedankt", "hallo", "alstublieft", "producten", "wil", "wild"];
+    const deCount = deWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)).length;
+    const nlCount = nlWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)).length;
+    if (deCount > nlCount && deCount >= 1) return "de";
+    if (nlCount > deCount && nlCount >= 1) return "nl";
     if (deCount > 0 || nlCount > 0) return deCount >= nlCount ? "de" : "nl";
     return "en";
 }
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 
         const customerEmail = extractEmail(from);
         const customerName = extractName(from);
-        const language = detectLanguage(bodyText);
+        const language = detectLanguage(bodyText, emailSubject);
 
         // Try to find an existing open ticket from this customer with same subject
         const normalizedSubject = emailSubject.replace(/^(Re:|Fw:|Fwd:)\s*/gi, "").trim();
