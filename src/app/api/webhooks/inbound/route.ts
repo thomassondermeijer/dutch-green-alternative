@@ -6,9 +6,10 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+
 /**
  * Simple language detection based on common words.
- * Returns 'de', 'nl', or 'en'.
  */
 function detectLanguage(text: string): string {
     const lower = text.toLowerCase();
@@ -22,10 +23,6 @@ function detectLanguage(text: string): string {
     return "en";
 }
 
-/**
- * Extract name from email "From" field.
- * e.g. "John Doe <john@example.com>" → "John Doe"
- */
 function extractName(from: string): string | null {
     const match = from.match(/^([^<]+)\s*</);
     if (match) return match[1].trim();
@@ -39,22 +36,61 @@ function extractEmail(from: string): string {
 }
 
 /**
+ * Fetch the full received email from Resend API.
+ */
+async function fetchReceivedEmail(emailId: string) {
+    const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
+    });
+    if (!res.ok) {
+        console.error(`[Inbound] Failed to fetch email ${emailId}: ${res.status}`);
+        return null;
+    }
+    return res.json();
+}
+
+/**
  * POST /api/webhooks/inbound
- * Receives inbound emails from Resend.
+ * Receives Resend webhook events for email.received.
  *
- * Expected payload from Resend:
- * {
- *   from: "John <john@example.com>",
- *   to: "support@dutchgreenalternative.nl",
- *   subject: "Question about my order",
- *   text: "Plain text body",
- *   html: "<p>HTML body</p>"
- * }
+ * Resend sends: { type: "email.received", data: { email_id, from, to, subject, created_at } }
+ * We then fetch the full email body via the Resend API.
  */
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { from, subject, text, html } = body;
+
+        // Handle Resend webhook format: { type: "email.received", data: { ... } }
+        let from: string;
+        let emailSubject: string;
+        let bodyText = "";
+        let bodyHtml = "";
+
+        if (body.type === "email.received" && body.data) {
+            // Resend webhook event format
+            const { data } = body;
+            from = data.from || "";
+            emailSubject = data.subject || "(No Subject)";
+
+            // Fetch full email content from Resend API
+            if (data.email_id && RESEND_API_KEY) {
+                const fullEmail = await fetchReceivedEmail(data.email_id);
+                if (fullEmail) {
+                    bodyText = fullEmail.text || "";
+                    bodyHtml = fullEmail.html || "";
+                    // Use the full from field if available
+                    if (fullEmail.from) from = fullEmail.from;
+                }
+            }
+        } else if (body.from) {
+            // Legacy direct payload format (fallback)
+            from = body.from;
+            emailSubject = body.subject || "(No Subject)";
+            bodyText = body.text || "";
+            bodyHtml = body.html || "";
+        } else {
+            return NextResponse.json({ ok: true, skipped: "unrecognized payload" });
+        }
 
         if (!from) {
             return NextResponse.json({ error: "Missing 'from'" }, { status: 400 });
@@ -62,9 +98,6 @@ export async function POST(req: NextRequest) {
 
         const customerEmail = extractEmail(from);
         const customerName = extractName(from);
-        const bodyText = text || "";
-        const bodyHtml = html || "";
-        const emailSubject = subject || "(No Subject)";
         const language = detectLanguage(bodyText);
 
         // Try to find an existing open ticket from this customer with same subject
@@ -77,10 +110,9 @@ export async function POST(req: NextRequest) {
             .order("updated_at", { ascending: false })
             .limit(5);
 
-        // Match by subject similarity (strip Re:/Fwd: prefixes)
+        // Match by subject similarity
         let ticketId: string | null = null;
         if (existingTickets && existingTickets.length > 0) {
-            // Check if any existing ticket subject matches
             for (const t of existingTickets) {
                 const { data: ticket } = await supabaseAdmin
                     .from("support_tickets")
@@ -95,7 +127,6 @@ export async function POST(req: NextRequest) {
                     }
                 }
             }
-            // If no subject match, use the most recent open ticket from this customer
             if (!ticketId) {
                 ticketId = existingTickets[0].id;
             }
@@ -103,7 +134,6 @@ export async function POST(req: NextRequest) {
 
         // If no existing ticket, create a new one
         if (!ticketId) {
-            // Try to link to customer's most recent order
             let orderId: string | null = null;
             const { data: order } = await supabaseAdmin
                 .from("orders")
@@ -134,7 +164,6 @@ export async function POST(req: NextRequest) {
             }
             ticketId = newTicket.id;
         } else {
-            // Reopen if it was pending, and update timestamp
             await supabaseAdmin
                 .from("support_tickets")
                 .update({ status: "open", updated_at: new Date().toISOString() })
