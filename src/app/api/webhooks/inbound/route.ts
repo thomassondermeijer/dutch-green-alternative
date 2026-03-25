@@ -37,13 +37,14 @@ function extractEmail(from: string): string {
 
 /**
  * Fetch the full received email from Resend API.
+ * Note: Received emails use /emails/received/{id}, NOT /emails/{id} (which is for sent emails).
  */
 async function fetchReceivedEmail(emailId: string) {
-    const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+    const res = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
         headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
     });
     if (!res.ok) {
-        console.error(`[Inbound] Failed to fetch email ${emailId}: ${res.status}`);
+        console.error(`[Inbound] Failed to fetch received email ${emailId}: ${res.status}`);
         return null;
     }
     return res.json();
