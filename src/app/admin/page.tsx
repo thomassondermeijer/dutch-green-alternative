@@ -19,6 +19,33 @@ type PaymentRow = { method: string; count: number; pct: number };
 type LTVRow = { email: string; name: string; total: number; orders: number };
 type CouponRow = { code: string; uses: number; revenue: number };
 
+type FeedItem = {
+    id: string;
+    type: "order" | "ticket" | "campaign" | "bounce";
+    text: string;
+    time: string;
+    icon: string;
+    iconBg: string;
+};
+
+type QuickStats = {
+    todayRevenue: number;
+    todayOrders: number;
+    openTickets: number;
+    activeCampaigns: number;
+    recentBounces: number;
+};
+
+type ActionItem = {
+    id: string;
+    type: "urgent" | "warning" | "info";
+    icon: string;
+    title: string;
+    desc: string;
+    count: number;
+    href: string;
+};
+
 const COLORS = ["#2d5a3d", "#6fcf97", "#34d399", "#a3e635", "#fbbf24", "#f97316", "#ef4444", "#8b5cf6"];
 const PAYMENT_COLORS: Record<string, string> = {
     ideal: "#CC0066", creditcard: "#1a1a2e", invoice: "#f59e0b", paypal: "#003087",
@@ -35,9 +62,26 @@ function fmtCurrency(n: number): string {
     return `€${n.toFixed(0)}`;
 }
 
+function relativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days === 1) return "Yesterday";
+    return `${days}d ago`;
+}
+
 export default function AdminDashboard() {
     const [period, setPeriod] = useState<Period>("30d");
     const [loading, setLoading] = useState(true);
+
+    // Activity Hub
+    const [quickStats, setQuickStats] = useState<QuickStats>({ todayRevenue: 0, todayOrders: 0, openTickets: 0, activeCampaigns: 0, recentBounces: 0 });
+    const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+    const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
 
     // KPIs
     const [kpis, setKpis] = useState<KPI[]>([]);
@@ -59,6 +103,100 @@ export default function AdminDashboard() {
         const days = periodDays(period);
         const since = days ? new Date(Date.now() - days * 86400000).toISOString() : null;
         const prevSince = days ? new Date(Date.now() - days * 2 * 86400000).toISOString() : null;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        // ═══ ACTIVITY HUB DATA ═══
+        const [ticketsRes, campaignsRes, bouncesRes, recentOrdersRes] = await Promise.all([
+            supabase.from("support_tickets").select("id, subject, customer_email, customer_name, status, created_at").in("status", ["open", "pending"]).order("created_at", { ascending: false }).limit(20),
+            supabase.from("marketing_campaigns").select("id, name, status, subject, created_at").in("status", ["sending", "scheduled"]),
+            supabase.from("email_suppression").select("id, email, reason, created_at").order("created_at", { ascending: false }).limit(10),
+            supabase.from("orders").select("id, total, status, payment_status, customer_email, created_at, shipping_address").order("created_at", { ascending: false }).limit(15),
+        ]);
+
+        const openTickets = ticketsRes.data || [];
+        const activeCampaigns = campaignsRes.data || [];
+        const recentBounces = bouncesRes.data || [];
+        const recentOrders = recentOrdersRes.data || [];
+
+        // Today's stats
+        const todayOrders = recentOrders.filter(o => new Date(o.created_at) >= todayStart);
+        const todayRevenue = todayOrders.filter(o => o.payment_status === "paid" || o.status === "delivered").reduce((s, o) => s + Number(o.total || 0), 0);
+        const last24hBounces = recentBounces.filter(b => Date.now() - new Date(b.created_at).getTime() < 86400000);
+
+        setQuickStats({
+            todayRevenue,
+            todayOrders: todayOrders.length,
+            openTickets: openTickets.length,
+            activeCampaigns: activeCampaigns.length,
+            recentBounces: last24hBounces.length,
+        });
+
+        // Action items
+        const actions: ActionItem[] = [];
+        if (openTickets.length > 0) {
+            actions.push({
+                id: "tickets", type: "urgent", icon: "🎫",
+                title: `${openTickets.length} open support ticket${openTickets.length > 1 ? "s" : ""}`,
+                desc: openTickets[0]?.subject || "Customer needs a reply",
+                count: openTickets.length, href: "/admin/support",
+            });
+        }
+        if (activeCampaigns.filter(c => c.status === "sending").length > 0) {
+            const sending = activeCampaigns.filter(c => c.status === "sending");
+            actions.push({
+                id: "campaigns", type: "info", icon: "📢",
+                title: `Campaign in progress`,
+                desc: sending[0]?.name || "Sending in daily batches",
+                count: sending.length, href: "/admin/marketing",
+            });
+        }
+        if (last24hBounces.length > 0) {
+            actions.push({
+                id: "bounces", type: "warning", icon: "⚠️",
+                title: `${last24hBounces.length} bounced email${last24hBounces.length > 1 ? "s" : ""} today`,
+                desc: "Check email suppression list",
+                count: last24hBounces.length, href: "/admin/marketing",
+            });
+        }
+        setActionItems(actions);
+
+        // Activity feed
+        const feed: FeedItem[] = [];
+        for (const o of recentOrders.slice(0, 8)) {
+            const addr = o.shipping_address as { first_name?: string; last_name?: string } | null;
+            const name = addr ? `${addr.first_name || ""} ${addr.last_name || ""}`.trim() : o.customer_email;
+            feed.push({
+                id: `order-${o.id}`,
+                type: "order",
+                text: `<strong>${name}</strong> placed an order for <strong>€${Number(o.total || 0).toFixed(2)}</strong>`,
+                time: o.created_at,
+                icon: "🛒",
+                iconBg: "#dcfce7",
+            });
+        }
+        for (const t of openTickets.slice(0, 4)) {
+            feed.push({
+                id: `ticket-${t.id}`,
+                type: "ticket",
+                text: `<strong>${t.customer_name || t.customer_email}</strong> — ${t.subject}`,
+                time: t.created_at,
+                icon: "🎫",
+                iconBg: "#fef2f2",
+            });
+        }
+        for (const c of activeCampaigns) {
+            feed.push({
+                id: `campaign-${c.id}`,
+                type: "campaign",
+                text: `Campaign <strong>${c.name}</strong> is ${c.status}`,
+                time: c.created_at,
+                icon: "📢",
+                iconBg: "#dbeafe",
+            });
+        }
+        feed.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+        setFeedItems(feed.slice(0, 12));
 
         // ─── Fetch all orders ───
         let query = supabase.from("orders").select("id, total, status, payment_status, payment_method, customer_email, coupon_code, created_at, shipping_address, discount_amount");
@@ -263,6 +401,121 @@ export default function AdminDashboard() {
             </div>
 
             <div className={styles.dashboard}>
+                {/* ═══ Activity Hub ═══ */}
+                <div className={styles.activityHub}>
+                    {/* Quick Stats Strip */}
+                    <div className={styles.quickStats}>
+                        <div className={styles.quickStat}>
+                            <div className={styles.quickStatIcon} style={{ background: "#dcfce7" }}>💰</div>
+                            <div className={styles.quickStatInfo}>
+                                <span className={styles.quickStatValue}>€{quickStats.todayRevenue.toFixed(0)}</span>
+                                <span className={styles.quickStatLabel}>Today&apos;s Revenue</span>
+                            </div>
+                        </div>
+                        <div className={styles.quickStat}>
+                            <div className={styles.quickStatIcon} style={{ background: "#dbeafe" }}>📦</div>
+                            <div className={styles.quickStatInfo}>
+                                <span className={styles.quickStatValue}>{quickStats.todayOrders}</span>
+                                <span className={styles.quickStatLabel}>Orders Today</span>
+                            </div>
+                        </div>
+                        <div className={styles.quickStat}>
+                            <div className={styles.quickStatIcon} style={{ background: quickStats.openTickets > 0 ? "#fef2f2" : "#f0fdf4" }}>
+                                🎫
+                            </div>
+                            <div className={styles.quickStatInfo}>
+                                <span className={styles.quickStatValue} style={quickStats.openTickets > 0 ? { color: "#dc2626" } : undefined}>
+                                    {quickStats.openTickets}
+                                </span>
+                                <span className={styles.quickStatLabel}>Open Tickets</span>
+                            </div>
+                        </div>
+                        <div className={styles.quickStat}>
+                            <div className={styles.quickStatIcon} style={{ background: "#ede9fe" }}>📢</div>
+                            <div className={styles.quickStatInfo}>
+                                <span className={styles.quickStatValue}>{quickStats.activeCampaigns}</span>
+                                <span className={styles.quickStatLabel}>Active Campaigns</span>
+                            </div>
+                        </div>
+                        <div className={styles.quickStat}>
+                            <div className={styles.quickStatIcon} style={{ background: quickStats.recentBounces > 0 ? "#fef3c7" : "#f0fdf4" }}>
+                                {quickStats.recentBounces > 0 ? "⚠️" : "✅"}
+                            </div>
+                            <div className={styles.quickStatInfo}>
+                                <span className={styles.quickStatValue} style={quickStats.recentBounces > 0 ? { color: "#d97706" } : undefined}>
+                                    {quickStats.recentBounces}
+                                </span>
+                                <span className={styles.quickStatLabel}>Bounces (24h)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Required */}
+                    <div className={styles.actionCards}>
+                        {actionItems.length === 0 ? (
+                            <div className={styles.actionCardEmpty}>✅ All clear — nothing needs attention</div>
+                        ) : (
+                            actionItems.map((item) => (
+                                <a
+                                    key={item.id}
+                                    href={item.href}
+                                    className={`${styles.actionCard} ${
+                                        item.type === "urgent" ? styles.actionCardUrgent
+                                        : item.type === "warning" ? styles.actionCardWarning
+                                        : styles.actionCardInfo
+                                    }`}
+                                >
+                                    <div className={styles.actionCardIcon}>{item.icon}</div>
+                                    <div className={styles.actionCardBody}>
+                                        <div className={styles.actionCardTitle}>{item.title}</div>
+                                        <div className={styles.actionCardDesc}>{item.desc}</div>
+                                    </div>
+                                    <div
+                                        className={styles.actionCardBadge}
+                                        style={{
+                                            color: item.type === "urgent" ? "#dc2626"
+                                                 : item.type === "warning" ? "#d97706"
+                                                 : "#2563eb"
+                                        }}
+                                    >
+                                        {item.count}
+                                    </div>
+                                </a>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Live Activity Feed */}
+                    <div className={styles.feedCard}>
+                        <div className={styles.feedHeader}>
+                            <div className={styles.feedTitle}>
+                                <span className={styles.liveDot} />
+                                Activity Feed
+                            </div>
+                        </div>
+                        <div className={styles.feedList}>
+                            {feedItems.length === 0 ? (
+                                <div className={styles.feedEmpty}>No recent activity</div>
+                            ) : (
+                                feedItems.map((item) => (
+                                    <div key={item.id} className={styles.feedItem}>
+                                        <div className={styles.feedIcon} style={{ background: item.iconBg }}>
+                                            {item.icon}
+                                        </div>
+                                        <div className={styles.feedContent}>
+                                            <div
+                                                className={styles.feedText}
+                                                dangerouslySetInnerHTML={{ __html: item.text }}
+                                            />
+                                            <div className={styles.feedTime}>{relativeTime(item.time)}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* ═══ KPI Cards ═══ */}
                 <div className={styles.kpiGrid}>
                     {kpis.map((kpi) => (
