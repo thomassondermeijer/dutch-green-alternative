@@ -37,18 +37,44 @@ function extractEmail(from: string): string {
 }
 
 /**
- * Fetch the full received email from Resend API.
+ * Fetch the full received email from Resend API with retry logic.
  * Note: Received emails use /emails/received/{id}, NOT /emails/{id} (which is for sent emails).
+ * Retries with delay to handle race conditions where the email isn't immediately available.
  */
-async function fetchReceivedEmail(emailId: string) {
-    const res = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
-    });
-    if (!res.ok) {
-        console.error(`[Inbound] Failed to fetch received email ${emailId}: ${res.status}`);
-        return null;
+async function fetchReceivedEmail(emailId: string, maxRetries = 3): Promise<Record<string, unknown> | null> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        // Wait before retrying (skip delay on first attempt)
+        if (attempt > 1) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+
+        try {
+            const res = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
+                headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
+            });
+
+            if (!res.ok) {
+                const errBody = await res.text().catch(() => "(no body)");
+                console.error(`[Inbound] Attempt ${attempt}/${maxRetries} — Failed to fetch received email ${emailId}: ${res.status} — ${errBody}`);
+                continue;
+            }
+
+            const data = await res.json();
+
+            // Verify we actually got body content
+            if (data && (data.text || data.html)) {
+                console.log(`[Inbound] Successfully fetched email body on attempt ${attempt}/${maxRetries} for ${emailId}`);
+                return data;
+            }
+
+            console.warn(`[Inbound] Attempt ${attempt}/${maxRetries} — Email ${emailId} fetched but body is empty, retrying...`);
+        } catch (err) {
+            console.error(`[Inbound] Attempt ${attempt}/${maxRetries} — Network error fetching email ${emailId}:`, err);
+        }
     }
-    return res.json();
+
+    console.error(`[Inbound] All ${maxRetries} attempts failed to fetch email body for ${emailId}`);
+    return null;
 }
 
 /**
@@ -67,22 +93,33 @@ export async function POST(req: NextRequest) {
         let emailSubject: string;
         let bodyText = "";
         let bodyHtml = "";
+        let resendEmailId: string | null = null;
 
         if (body.type === "email.received" && body.data) {
             // Resend webhook event format
             const { data } = body;
+            console.log(`[Inbound] Webhook payload data keys: ${Object.keys(data).join(", ")}`);
+            console.log(`[Inbound] Webhook data:`, JSON.stringify({ email_id: data.email_id, id: data.id, from: data.from, subject: data.subject }));
+
             from = data.from || "";
             emailSubject = data.subject || "(No Subject)";
 
+            // Try both possible field names for the email ID
+            resendEmailId = data.email_id || data.id || null;
+
             // Fetch full email content from Resend API
-            if (data.email_id && RESEND_API_KEY) {
-                const fullEmail = await fetchReceivedEmail(data.email_id);
+            if (resendEmailId && RESEND_API_KEY) {
+                const fullEmail = await fetchReceivedEmail(resendEmailId);
                 if (fullEmail) {
-                    bodyText = fullEmail.text || "";
-                    bodyHtml = fullEmail.html || "";
+                    bodyText = (fullEmail.text as string) || "";
+                    bodyHtml = (fullEmail.html as string) || "";
                     // Use the full from field if available
-                    if (fullEmail.from) from = fullEmail.from;
+                    if (fullEmail.from) from = fullEmail.from as string;
+                } else {
+                    console.error(`[Inbound] Could not fetch body for email ${resendEmailId} — ticket will have empty body`);
                 }
+            } else {
+                console.error(`[Inbound] No email ID found in webhook payload and/or no API key configured. RESEND_API_KEY present: ${!!RESEND_API_KEY}`);
             }
         } else if (body.from) {
             // Legacy direct payload format (fallback)
@@ -179,7 +216,10 @@ export async function POST(req: NextRequest) {
             from_email: customerEmail,
             body_text: bodyText,
             body_html: bodyHtml,
+            ...(resendEmailId ? { resend_email_id: resendEmailId } : {}),
         });
+
+        console.log(`[Inbound] Ticket ${ticketId} — body stored: ${bodyText.length > 0 ? `${bodyText.length} chars` : "EMPTY"} — resend_id: ${resendEmailId || "none"}`);
 
         console.log(`[Inbound] Ticket ${ticketId} — from: ${customerEmail}, subject: ${emailSubject}`);
         return NextResponse.json({ success: true, ticket_id: ticketId });

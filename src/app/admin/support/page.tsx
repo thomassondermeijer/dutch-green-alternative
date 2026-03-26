@@ -19,6 +19,7 @@ type Ticket = {
     created_at: string;
     updated_at: string;
     message_count: number;
+    body_preview: string;
 };
 
 const LANG_FLAGS: Record<string, string> = { de: "🇩🇪", nl: "🇳🇱", en: "🇬🇧" };
@@ -59,23 +60,30 @@ export default function SupportPage() {
         const { data: ticketData } = await query;
         const allTickets = ticketData || [];
 
-        // Get message counts per ticket
+        // Get message counts and latest body preview per ticket
         const ticketIds = allTickets.map((t) => t.id);
         let messageCounts: Record<string, number> = {};
+        let bodyPreviews: Record<string, string> = {};
         if (ticketIds.length > 0) {
             const { data: messages } = await supabase
                 .from("ticket_messages")
-                .select("ticket_id")
-                .in("ticket_id", ticketIds);
+                .select("ticket_id, direction, body_text")
+                .in("ticket_id", ticketIds)
+                .order("created_at", { ascending: false });
 
             for (const m of messages || []) {
                 messageCounts[m.ticket_id] = (messageCounts[m.ticket_id] || 0) + 1;
+                // Grab the first (most recent) inbound message body as preview
+                if (m.direction === "inbound" && m.body_text && !bodyPreviews[m.ticket_id]) {
+                    bodyPreviews[m.ticket_id] = m.body_text.slice(0, 100);
+                }
             }
         }
 
         const enriched: Ticket[] = allTickets.map((t) => ({
             ...t,
             message_count: messageCounts[t.id] || 0,
+            body_preview: bodyPreviews[t.id] || "",
         }));
 
         setTickets(enriched);
@@ -132,6 +140,7 @@ export default function SupportPage() {
                         <tr>
                             <th>Status</th>
                             <th>Subject</th>
+                            <th>Preview</th>
                             <th>Customer</th>
                             <th>Lang</th>
                             <th>Priority</th>
@@ -153,6 +162,11 @@ export default function SupportPage() {
                                 </td>
                                 <td>
                                     <div className={styles.ticketSubject}>{ticket.subject}</div>
+                                </td>
+                                <td>
+                                    <div className={styles.ticketPreview}>
+                                        {ticket.body_preview ? `${ticket.body_preview}${ticket.body_preview.length >= 100 ? "…" : ""}` : "—"}
+                                    </div>
                                 </td>
                                 <td>
                                     <div>{ticket.customer_name || "—"}</div>
