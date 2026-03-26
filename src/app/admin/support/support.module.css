@@ -305,6 +305,51 @@
     border-color: var(--color-primary);
 }
 
+.aiContextSection {
+    margin-top: var(--space-sm);
+}
+
+.aiContextToggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-body);
+    color: #7c3aed;
+    font-weight: var(--font-weight-medium);
+    padding: 4px 0;
+}
+
+.aiContextToggle:hover {
+    color: #6d28d9;
+}
+
+.aiContextTextarea {
+    width: 100%;
+    min-height: 70px;
+    margin-top: var(--space-xs);
+    border: 1.5px dashed #c084fc;
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--font-body);
+    font-size: 13px;
+    resize: vertical;
+    background: #faf5ff;
+    color: var(--color-text);
+    line-height: 1.5;
+}
+
+.aiContextTextarea:focus {
+    outline: none;
+    border-color: #7c3aed;
+    background: #f5f3ff;
+}
+
+.aiContextTextarea::placeholder {
+    color: #a78bfa;
+    font-style: italic;
+}
+
 .replyActions {
     display: flex;
     justify-content: space-between;

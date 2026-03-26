@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { messages, customerLanguage, orderInfo } = await req.json();
+        const { messages, customerLanguage, orderInfo, adminContext } = await req.json();
 
         const langMap: Record<string, string> = {
             de: "German",
@@ -31,6 +31,14 @@ CUSTOMER ORDER CONTEXT:
 - Payment status: ${orderInfo.paymentStatus}
 - Total: €${orderInfo.total}
 - Products: ${orderInfo.items.join(", ")}
+`;
+        }
+
+        let adminInstructions = "";
+        if (adminContext) {
+            adminInstructions = `
+ADMIN INSTRUCTIONS (follow these closely):
+${adminContext}
 `;
         }
 
@@ -53,7 +61,7 @@ RULES:
 8. Never make medical claims. If asked about health benefits, mention that CBD is a food supplement and recommend consulting a doctor.
 
 ${orderContext}
-
+${adminInstructions}
 CONVERSATION SO FAR:
 ${conversationHistory}
 

@@ -68,6 +68,8 @@ export default function TicketDetailPage() {
     const [sending, setSending] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [translating, setTranslating] = useState<string | null>(null);
+    const [aiContext, setAiContext] = useState("");
+    const [showAiContext, setShowAiContext] = useState(false);
 
     const loadTicket = useCallback(async () => {
         const supabase = createClient();
@@ -178,6 +180,7 @@ export default function TicketDetailPage() {
                         from: m.from_email,
                     })),
                     customerLanguage: ticket.language,
+                    adminContext: aiContext.trim() || undefined,
                     orderInfo: order ? {
                         status: order.status,
                         total: order.total,
@@ -204,7 +207,7 @@ export default function TicketDetailPage() {
             const res = await fetch("/api/admin/support/translate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, targetLanguage: "en" }),
+                body: JSON.stringify({ text, targetLanguage: "nl" }),
             });
 
             const data = await res.json();
@@ -327,22 +330,22 @@ export default function TicketDetailPage() {
                             {msg.body_text || "(No text content)"}
                         </div>
 
-                        {/* Translate button for inbound messages in non-English */}
-                        {msg.direction === "inbound" && ticket.language !== "en" && !msg.translation && (
+                        {/* Translate button for all inbound messages */}
+                        {msg.direction === "inbound" && !msg.translation && (
                             <button
                                 className={styles.translateBtn}
                                 onClick={() => translateMessage(msg.id, msg.body_text || "")}
                                 disabled={translating === msg.id}
                                 style={{ marginTop: 8 }}
                             >
-                                {translating === msg.id ? "Translating..." : "🌐 Translate to English"}
+                                {translating === msg.id ? "Translating..." : "🌐 Translate to Dutch"}
                             </button>
                         )}
 
                         {/* Translation result */}
                         {msg.translation && (
                             <div className={styles.translationBox}>
-                                <div className={styles.translationLabel}>English Translation</div>
+                                <div className={styles.translationLabel}>🇳🇱 Dutch Translation</div>
                                 {msg.translation}
                             </div>
                         )}
@@ -359,6 +362,26 @@ export default function TicketDetailPage() {
                         value={reply}
                         onChange={(e) => setReply(e.target.value)}
                     />
+                    {/* AI Context Input */}
+                    <div className={styles.aiContextSection}>
+                        <button
+                            className={styles.aiContextToggle}
+                            onClick={() => setShowAiContext(!showAiContext)}
+                            type="button"
+                        >
+                            {showAiContext ? "▾" : "▸"} AI Context / Instructions
+                        </button>
+                        {showAiContext && (
+                            <textarea
+                                className={styles.aiContextTextarea}
+                                placeholder="Give the AI extra context, e.g. 'Offer coupon OSTERN26', 'Explain we ship from NL in 3-5 days', 'Apologize for delay'..."
+                                value={aiContext}
+                                onChange={(e) => setAiContext(e.target.value)}
+                                rows={3}
+                            />
+                        )}
+                    </div>
+
                     <div className={styles.replyActions}>
                         <div className={styles.replyBtnGroup}>
                             <button
