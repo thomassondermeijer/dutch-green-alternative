@@ -134,6 +134,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } catch { }
     }, []);
 
+    // Capture ?coupon= URL param globally (works on any page)
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const couponParam = params.get("coupon");
+            if (couponParam) {
+                const code = couponParam.toUpperCase();
+                localStorage.setItem("dga_coupon", JSON.stringify({
+                    code,
+                    expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+                }));
+            }
+        } catch { /* ignore */ }
+    }, []);
+
     // Persist to localStorage on change
     useEffect(() => {
         try {
