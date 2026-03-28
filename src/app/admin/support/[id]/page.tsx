@@ -184,6 +184,12 @@ export default function TicketDetailPage() {
         setTicket((prev) => prev ? { ...prev, priority: newPriority } : prev);
     };
 
+    const updateLanguage = async (newLang: string) => {
+        const supabase = createClient();
+        await supabase.from("support_tickets").update({ language: newLang }).eq("id", id);
+        setTicket((prev) => prev ? { ...prev, language: newLang } : prev);
+    };
+
     const sendReply = async () => {
         if (!reply.trim() || !ticket) return;
         setSending(true);
@@ -291,9 +297,18 @@ export default function TicketDetailPage() {
                     <div className={styles.detailMeta}>
                         <span>{ticket.customer_name || ticket.customer_email}</span>
                         <span>•</span>
-                        <span className={styles.langBadge}>
-                            {LANG_FLAGS[ticket.language] || "🌐"} {LANG_NAMES[ticket.language] || ticket.language}
-                        </span>
+                        <select
+                            className={styles.langSelect}
+                            value={ticket.language}
+                            onChange={(e) => updateLanguage(e.target.value)}
+                        >
+                            <option value="de">🇩🇪 German</option>
+                            <option value="nl">🇳🇱 Dutch</option>
+                            <option value="en">🇬🇧 English</option>
+                            <option value="fr">🇫🇷 French</option>
+                            <option value="it">🇮🇹 Italian</option>
+                            <option value="es">🇪🇸 Spanish</option>
+                        </select>
                         <span>•</span>
                         <span>Created {timeAgo(ticket.created_at)}</span>
                     </div>

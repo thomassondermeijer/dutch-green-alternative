@@ -12,15 +12,30 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
  * Simple language detection based on common words.
  * Checks both body text and subject for robustness with short messages.
  */
-function detectLanguage(text: string, subject?: string): string {
+function detectLanguage(text: string, subject?: string, fromEmail?: string): string {
     const lower = `${subject || ""} ${text}`.toLowerCase();
-    const deWords = ["und", "ich", "die", "der", "das", "ist", "nicht", "ein", "eine", "mit", "habe", "mein", "bestellung", "lieferung", "hallo", "bitte", "danke", "produkt", "produkte"];
-    const nlWords = ["en", "ik", "de", "het", "een", "niet", "van", "dat", "mijn", "bestelling", "heb", "graag", "bedankt", "hallo", "alstublieft", "producten", "wil", "wild"];
-    const deCount = deWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)).length;
-    const nlCount = nlWords.filter(w => lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)).length;
+    const deWords = ["und", "ich", "die", "der", "das", "ist", "nicht", "ein", "eine", "mit", "habe", "mein", "bestellung", "lieferung", "hallo", "bitte", "danke", "produkt", "produkte", "guten", "morgen", "schon", "nehme", "möchte", "gerne", "wie", "tropfen", "anwendung"];
+    const nlWords = ["en", "ik", "de", "het", "een", "niet", "van", "dat", "mijn", "bestelling", "heb", "graag", "bedankt", "hallo", "alstublieft", "producten", "wil", "wild", "goedemorgen", "dank"];
+
+    // Use word boundary matching that works for single words and phrases
+    const matchWord = (w: string) => {
+        const regex = new RegExp(`(?:^|\\s|[.,!?;:])${w}(?:$|\\s|[.,!?;:])`);
+        return regex.test(lower);
+    };
+
+    const deCount = deWords.filter(matchWord).length;
+    const nlCount = nlWords.filter(matchWord).length;
     if (deCount > nlCount && deCount >= 1) return "de";
     if (nlCount > deCount && nlCount >= 1) return "nl";
     if (deCount > 0 || nlCount > 0) return deCount >= nlCount ? "de" : "nl";
+
+    // Fallback: use email TLD as hint
+    if (fromEmail) {
+        const tld = fromEmail.split(".").pop()?.toLowerCase();
+        if (tld === "de" || tld === "at" || tld === "ch") return "de";
+        if (tld === "nl" || tld === "be") return "nl";
+    }
+
     return "en";
 }
 
@@ -139,7 +154,7 @@ export async function POST(req: NextRequest) {
 
         const customerEmail = extractEmail(from);
         const customerName = extractName(from);
-        const language = detectLanguage(bodyText, emailSubject);
+        const language = detectLanguage(bodyText, emailSubject, customerEmail);
 
         // Try to find an existing open ticket from this customer with same subject
         const normalizedSubject = emailSubject.replace(/^(Re:|Fw:|Fwd:)\s*/gi, "").trim();

@@ -77,6 +77,21 @@
     font-weight: var(--font-weight-medium);
 }
 
+.langSelect {
+    font-size: 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    color: var(--color-text);
+}
+
+.langSelect:hover {
+    border-color: var(--color-primary);
+}
+
 /* Ticket row */
 .ticketRow {
     cursor: pointer;
