@@ -72,6 +72,8 @@ export default function TicketDetailPage() {
     const [translating, setTranslating] = useState<string | null>(null);
     const [aiContext, setAiContext] = useState("");
     const [showAiContext, setShowAiContext] = useState(false);
+    const [draftTranslation, setDraftTranslation] = useState<string | null>(null);
+    const [draftTranslating, setDraftTranslating] = useState(false);
 
     const loadTicket = useCallback(async () => {
         const supabase = createClient();
@@ -245,6 +247,24 @@ export default function TicketDetailPage() {
             const data = await res.json();
             if (data.draft) {
                 setReply(data.draft);
+                setDraftTranslation(null);
+
+                // Auto-translate if not Dutch or English
+                if (ticket.language !== "nl" && ticket.language !== "en") {
+                    setDraftTranslating(true);
+                    try {
+                        const trRes = await fetch("/api/admin/support/translate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ text: data.draft, targetLanguage: "nl" }),
+                        });
+                        const trData = await trRes.json();
+                        if (trData.translation) {
+                            setDraftTranslation(trData.translation);
+                        }
+                    } catch { /* ignore translation failure */ }
+                    setDraftTranslating(false);
+                }
             }
         } catch (err) {
             console.error("AI draft failed:", err);
@@ -440,8 +460,21 @@ export default function TicketDetailPage() {
                         className={styles.replyTextarea}
                         placeholder={`Reply to ${ticket.customer_name || ticket.customer_email}...`}
                         value={reply}
-                        onChange={(e) => setReply(e.target.value)}
+                        onChange={(e) => { setReply(e.target.value); setDraftTranslation(null); }}
                     />
+
+                    {/* AI Draft Translation */}
+                    {draftTranslating && (
+                        <div className={styles.translationBox} style={{ marginTop: 8 }}>
+                            <div className={styles.translationLabel}>⏳ Translating draft to Dutch...</div>
+                        </div>
+                    )}
+                    {draftTranslation && (
+                        <div className={styles.translationBox} style={{ marginTop: 8 }}>
+                            <div className={styles.translationLabel}>🇳🇱 Dutch Translation (for your review)</div>
+                            {draftTranslation}
+                        </div>
+                    )}
                     {/* AI Context Input */}
                     <div className={styles.aiContextSection}>
                         <button
