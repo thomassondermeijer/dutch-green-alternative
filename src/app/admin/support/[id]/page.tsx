@@ -28,7 +28,9 @@ type Message = {
     body_html: string | null;
     is_ai_generated: boolean;
     created_at: string;
+    resend_email_id?: string | null;
     translation?: string;
+    fetchingBody?: boolean;
 };
 
 type OrderInfo = {
@@ -92,7 +94,18 @@ export default function TicketDetailPage() {
             .select("*")
             .eq("ticket_id", id)
             .order("created_at", { ascending: true });
-        setMessages(msgs || []);
+        const loadedMsgs = (msgs || []) as Message[];
+        setMessages(loadedMsgs);
+
+        // Auto-fetch missing bodies for messages with resend_email_id
+        const missingBody = loadedMsgs.filter(
+            (m) => m.resend_email_id && !m.body_text && !m.body_html
+        );
+        if (missingBody.length > 0) {
+            for (const msg of missingBody) {
+                fetchMessageBody(msg.id, msg.resend_email_id!);
+            }
+        }
 
         // Load linked order
         if (ticketData.order_id) {
@@ -118,6 +131,39 @@ export default function TicketDetailPage() {
     useEffect(() => {
         loadTicket();
     }, [loadTicket]);
+
+    const fetchMessageBody = async (messageId: string, resendEmailId: string) => {
+        setMessages((prev) =>
+            prev.map((m) => m.id === messageId ? { ...m, fetchingBody: true } : m)
+        );
+
+        try {
+            const res = await fetch("/api/admin/support/fetch-body", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messageId, resendEmailId }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === messageId
+                            ? { ...m, body_text: data.body_text, body_html: data.body_html, fetchingBody: false }
+                            : m
+                    )
+                );
+            } else {
+                setMessages((prev) =>
+                    prev.map((m) => m.id === messageId ? { ...m, fetchingBody: false } : m)
+                );
+            }
+        } catch {
+            setMessages((prev) =>
+                prev.map((m) => m.id === messageId ? { ...m, fetchingBody: false } : m)
+            );
+        }
+    };
 
     const updateStatus = async (newStatus: string) => {
         const supabase = createClient();
@@ -327,7 +373,26 @@ export default function TicketDetailPage() {
                             <span>{timeAgo(msg.created_at)}</span>
                         </div>
                         <div className={styles.messageBody}>
-                            {msg.body_text || "(No text content)"}
+                            {msg.fetchingBody ? (
+                                <span style={{ color: "#94a3b8", fontStyle: "italic" }}>
+                                    ⏳ Fetching email content from Resend...
+                                </span>
+                            ) : msg.body_text ? (
+                                msg.body_text
+                            ) : msg.resend_email_id ? (
+                                <span style={{ color: "#94a3b8" }}>
+                                    (Email body not captured){" "}
+                                    <button
+                                        className={styles.translateBtn}
+                                        onClick={() => fetchMessageBody(msg.id, msg.resend_email_id!)}
+                                        style={{ display: "inline" }}
+                                    >
+                                        🔄 Retry fetch
+                                    </button>
+                                </span>
+                            ) : (
+                                "(No text content)"
+                            )}
                         </div>
 
                         {/* Translate button for all inbound messages */}

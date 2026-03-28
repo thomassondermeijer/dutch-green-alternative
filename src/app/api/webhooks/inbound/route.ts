@@ -109,17 +109,19 @@ export async function POST(req: NextRequest) {
 
             // Fetch full email content from Resend API
             if (resendEmailId && RESEND_API_KEY) {
+                console.log(`[Inbound] Fetching email body for ${resendEmailId}, API key length: ${RESEND_API_KEY.length}`);
                 const fullEmail = await fetchReceivedEmail(resendEmailId);
                 if (fullEmail) {
                     bodyText = (fullEmail.text as string) || "";
                     bodyHtml = (fullEmail.html as string) || "";
+                    console.log(`[Inbound] Body fetched: text=${bodyText.length} chars, html=${bodyHtml.length} chars`);
                     // Use the full from field if available
                     if (fullEmail.from) from = fullEmail.from as string;
                 } else {
-                    console.error(`[Inbound] Could not fetch body for email ${resendEmailId} — ticket will have empty body`);
+                    console.error(`[Inbound] Could not fetch body for email ${resendEmailId} after retries — will be fetched on-demand when admin opens ticket`);
                 }
             } else {
-                console.error(`[Inbound] No email ID found in webhook payload and/or no API key configured. RESEND_API_KEY present: ${!!RESEND_API_KEY}`);
+                console.error(`[Inbound] Cannot fetch body: resendEmailId=${resendEmailId}, RESEND_API_KEY present=${!!RESEND_API_KEY}, RESEND_API_KEY length=${RESEND_API_KEY.length}`);
             }
         } else if (body.from) {
             // Legacy direct payload format (fallback)
