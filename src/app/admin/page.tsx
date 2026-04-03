@@ -10,7 +10,7 @@ import styles from "./dashboard.module.css";
 import adminStyles from "./admin.module.css";
 
 // ─── Types ───
-type Period = "7d" | "30d" | "90d" | "all";
+type Period = "7d" | "30d" | "90d" | "all" | "custom";
 type KPI = { label: string; value: string; change: number | null; prefix?: string };
 type ChartPoint = { label: string; revenue: number; orders: number };
 type ProductRow = { name: string; quantity: number; revenue: number };
@@ -76,6 +76,11 @@ function relativeTime(dateStr: string): string {
 
 export default function AdminDashboard() {
     const [period, setPeriod] = useState<Period>("30d");
+    const [customFrom, setCustomFrom] = useState(() => {
+        const d = new Date(); d.setDate(1);
+        return d.toISOString().split("T")[0];
+    });
+    const [customTo, setCustomTo] = useState(() => new Date().toISOString().split("T")[0]);
     const [loading, setLoading] = useState(true);
 
     // Activity Hub
@@ -101,8 +106,23 @@ export default function AdminDashboard() {
         setLoading(true);
         const supabase = createClient();
         const days = periodDays(period);
-        const since = days ? new Date(Date.now() - days * 86400000).toISOString() : null;
-        const prevSince = days ? new Date(Date.now() - days * 2 * 86400000).toISOString() : null;
+
+        let since: string | null = null;
+        let until: string | null = null;
+        let prevSince: string | null = null;
+        let prevUntil: string | null = null;
+
+        if (period === "custom") {
+            since = new Date(customFrom + "T00:00:00").toISOString();
+            until = new Date(customTo + "T23:59:59").toISOString();
+            const duration = new Date(customTo).getTime() - new Date(customFrom).getTime();
+            prevSince = new Date(new Date(customFrom).getTime() - duration).toISOString();
+            prevUntil = since;
+        } else if (days) {
+            since = new Date(Date.now() - days * 86400000).toISOString();
+            prevSince = new Date(Date.now() - days * 2 * 86400000).toISOString();
+        }
+
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -201,14 +221,15 @@ export default function AdminDashboard() {
         // ─── Fetch all orders ───
         let query = supabase.from("orders").select("id, total, status, payment_status, payment_method, customer_email, coupon_code, created_at, shipping_address, discount_amount");
         if (since) query = query.gte("created_at", since);
+        if (until) query = query.lte("created_at", until);
         const { data: orders } = await query.order("created_at", { ascending: true });
         const allOrders = orders || [];
 
         // Previous period for comparison
         let prevOrders: { id: string; total: number; payment_status: string; customer_email: string; created_at: string; status?: string }[] = [];
-        if (prevSince && since) {
+        if (prevSince && (prevUntil || since)) {
             const { data } = await supabase.from("orders").select("id, total, payment_status, customer_email, created_at, status")
-                .gte("created_at", prevSince).lt("created_at", since);
+                .gte("created_at", prevSince).lt("created_at", prevUntil || since);
             prevOrders = (data || []) as typeof prevOrders;
         }
 
@@ -235,12 +256,15 @@ export default function AdminDashboard() {
         ]);
 
         // ─── Revenue/Orders Chart ───
+        const rangeLen = period === "custom"
+            ? Math.ceil((new Date(customTo).getTime() - new Date(customFrom).getTime()) / 86400000)
+            : days;
         const buckets = new Map<string, { revenue: number; orders: number }>();
         for (const o of allOrders) {
             const d = new Date(o.created_at);
-            const key = days && days <= 30
+            const key = rangeLen && rangeLen <= 30
                 ? `${d.getMonth() + 1}/${d.getDate()}`
-                : days && days <= 90
+                : rangeLen && rangeLen <= 90
                     ? `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleString("default", { month: "short" })}`
                     : `${d.toLocaleString("default", { month: "short" })} ${d.getFullYear().toString().slice(-2)}`;
             const b = buckets.get(key) || { revenue: 0, orders: 0 };
@@ -368,7 +392,7 @@ export default function AdminDashboard() {
         );
 
         setLoading(false);
-    }, [period]);
+    }, [period, customFrom, customTo]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -387,16 +411,43 @@ export default function AdminDashboard() {
         <>
             <div className={adminStyles.pageHeader}>
                 <h1 className={adminStyles.pageTitle}>Dashboard</h1>
-                <div className={styles.periodSelector}>
-                    {(["7d", "30d", "90d", "all"] as Period[]).map((p) => (
+                <div className={styles.periodControls}>
+                    <div className={styles.periodSelector}>
+                        {(["7d", "30d", "90d", "all"] as Period[]).map((p) => (
+                            <button
+                                key={p}
+                                className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ""}`}
+                                onClick={() => setPeriod(p)}
+                            >
+                                {p === "all" ? "All Time" : p}
+                            </button>
+                        ))}
                         <button
-                            key={p}
-                            className={`${styles.periodBtn} ${period === p ? styles.periodBtnActive : ""}`}
-                            onClick={() => setPeriod(p)}
+                            className={`${styles.periodBtn} ${period === "custom" ? styles.periodBtnActive : ""}`}
+                            onClick={() => setPeriod("custom")}
                         >
-                            {p === "all" ? "All Time" : p}
+                            📅 Custom
                         </button>
-                    ))}
+                    </div>
+                    {period === "custom" && (
+                        <div className={styles.customDateRange}>
+                            <input
+                                type="date"
+                                className={styles.dateInput}
+                                value={customFrom}
+                                onChange={(e) => setCustomFrom(e.target.value)}
+                                max={customTo}
+                            />
+                            <span className={styles.dateRangeSep}>→</span>
+                            <input
+                                type="date"
+                                className={styles.dateInput}
+                                value={customTo}
+                                onChange={(e) => setCustomTo(e.target.value)}
+                                min={customFrom}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

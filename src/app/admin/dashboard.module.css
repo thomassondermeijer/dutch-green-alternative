@@ -565,6 +565,54 @@
     font-size: 0.85rem;
 }
 
+/* ─── Custom Date Range ─── */
+.periodControls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.customDateRange {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: dateRangeFadeIn 0.25s ease;
+}
+
+@keyframes dateRangeFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dateInput {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    color: #1e293b;
+    background: white;
+    outline: none;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.dateInput:hover {
+    border-color: #cbd5e1;
+}
+
+.dateInput:focus {
+    border-color: #2d5a3d;
+    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.1);
+}
+
+.dateRangeSep {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {
     .kpiGrid {
