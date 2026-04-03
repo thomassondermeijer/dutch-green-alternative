@@ -58,8 +58,7 @@ function periodDays(p: Period): number | null {
 }
 
 function fmtCurrency(n: number): string {
-    if (n >= 1000) return `€${(n / 1000).toFixed(1)}k`;
-    return `€${n.toFixed(0)}`;
+    return `€${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function relativeTime(dateStr: string): string {
