@@ -64,7 +64,7 @@ async function fetchReceivedEmail(emailId: string, maxRetries = 3): Promise<Reco
         }
 
         try {
-            const res = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
+            const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
                 headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
             });
 
