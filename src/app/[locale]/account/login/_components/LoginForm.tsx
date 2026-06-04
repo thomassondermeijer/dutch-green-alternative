@@ -155,6 +155,13 @@ export function LoginForm({ locale, dict }: LoginFormProps) {
                                 minLength={6}
                             />
                         </div>
+                        <Link
+                            href={`/${locale}/account/forgot-password`}
+                            className={styles.textButton}
+                            style={{ alignSelf: "flex-end" }}
+                        >
+                            {dict.account.forgotPassword}
+                        </Link>
                         <Button variant="primary" fullWidth type="submit" disabled={loading}>
                             {loading ? dict.common.loading : dict.account.loginButton}
                         </Button>
