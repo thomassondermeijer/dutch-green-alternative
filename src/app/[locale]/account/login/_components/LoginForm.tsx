@@ -20,7 +20,7 @@ export function LoginForm({ locale, dict }: LoginFormProps) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [magicLinkSent, setMagicLinkSent] = useState(false);
-    const [mode, setMode] = useState<"password" | "magic">("magic");
+    const [mode, setMode] = useState<"password" | "magic">("password");
 
     const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault();
