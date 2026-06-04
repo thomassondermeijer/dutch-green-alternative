@@ -94,10 +94,13 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // Skip locale handling for static files and API routes
+    // Skip locale handling for static files, API routes, and auth callbacks
+    // (the /auth/callback route handler is locale-agnostic and must not be
+    // locale-prefixed, or the magic-link redirect 404s)
     const isStaticOrApi =
         pathname.startsWith('/_next') ||
         pathname.startsWith('/api') ||
+        pathname.startsWith('/auth') ||
         pathname.includes('.') ||
         pathname.startsWith('/favicon');
 
