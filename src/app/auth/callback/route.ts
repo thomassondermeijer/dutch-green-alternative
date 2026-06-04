@@ -3,11 +3,22 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// The public host the user requested. On Netlify/proxies, req.url is the internal
+// deploy URL (<deploy>--site.netlify.app); redirecting against it bounces the user
+// onto that permalink. x-forwarded-host carries the real public host.
+function getPublicOrigin(req: NextRequest): string {
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
+    if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+    return new URL(req.url).origin;
+}
+
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const next = searchParams.get("next") || "/de/account";
     const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/de/account";
+    const origin = getPublicOrigin(req);
 
     if (code) {
         const cookieStore = await cookies();
@@ -15,7 +26,7 @@ export async function GET(req: NextRequest) {
         // issues during exchangeCodeForSession are written onto THIS response. A
         // NextResponse.redirect created afterwards would not carry those Set-Cookie
         // headers, so the session would never reach the browser (user lands logged out).
-        const response = NextResponse.redirect(new URL(safeNext, req.url));
+        const response = NextResponse.redirect(new URL(safeNext, origin));
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -58,5 +69,5 @@ export async function GET(req: NextRequest) {
     }
 
     // If something went wrong, redirect to login
-    return NextResponse.redirect(new URL("/de/account/login", req.url));
+    return NextResponse.redirect(new URL("/de/account/login", origin));
 }

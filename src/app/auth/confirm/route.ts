@@ -3,23 +3,33 @@ import { createClient, type EmailOtpType } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// The public host the user actually requested. On Netlify/proxies, req.url inside
+// a serverless function is the INTERNAL deploy URL (<deploy>--site.netlify.app),
+// so redirecting against it bounces the user onto that permalink. x-forwarded-host
+// carries the real public host (dutchgreenalternative.nl).
+function getPublicOrigin(req: NextRequest): string {
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
+    if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+    return new URL(req.url).origin;
+}
+
 // Token-hash email-verification handler (magic link, password recovery, signup
-// confirmation). Unlike /auth/callback's PKCE `?code=` exchange, verifyOtp does
-// NOT require a client-side code_verifier, so the link works regardless of which
-// browser/device opens the email. This is the recommended @supabase/ssr flow for
-// email auth links.
+// confirmation). verifyOtp does NOT require a client-side code_verifier, so the
+// link works regardless of which browser/device opens the email.
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const token_hash = searchParams.get("token_hash");
     const type = searchParams.get("type") as EmailOtpType | null;
     const next = searchParams.get("next") || "/de/account";
     const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/de/account";
+    const origin = getPublicOrigin(req);
 
     if (token_hash && type) {
         const cookieStore = await cookies();
         // Build the redirect up front so the session cookies verifyOtp issues are
         // written onto THIS response (a redirect created afterwards wouldn't carry them).
-        const response = NextResponse.redirect(new URL(safeNext, req.url));
+        const response = NextResponse.redirect(new URL(safeNext, origin));
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -59,8 +69,13 @@ export async function GET(req: NextRequest) {
         if (!error) {
             return response;
         }
+
+        // Surface the verification error so it can be diagnosed from the URL.
+        console.error("[Auth Confirm] verifyOtp failed:", error.status, error.message);
+        return NextResponse.redirect(
+            new URL(`/de/account/login?auth_error=${encodeURIComponent(error.message)}`, origin)
+        );
     }
 
-    // If something went wrong, redirect to login
-    return NextResponse.redirect(new URL("/de/account/login", req.url));
+    return NextResponse.redirect(new URL("/de/account/login?auth_error=missing_token", origin));
 }
