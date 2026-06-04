@@ -225,6 +225,11 @@ button.sidebarLink {
     font-size: var(--font-size-sm);
 }
 
+button.sidebarLink.sidebarLinkActive {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+}
+
 .logoutBtn {
     display: flex;
     align-items: center;

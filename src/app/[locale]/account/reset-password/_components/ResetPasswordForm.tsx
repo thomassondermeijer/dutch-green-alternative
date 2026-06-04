@@ -82,6 +82,7 @@ export function ResetPasswordForm({ locale, dict }: ResetPasswordFormProps) {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
+                            autoComplete="new-password"
                             autoFocus
                         />
                     </div>
@@ -97,6 +98,7 @@ export function ResetPasswordForm({ locale, dict }: ResetPasswordFormProps) {
                             onChange={(e) => setConfirm(e.target.value)}
                             required
                             minLength={6}
+                            autoComplete="new-password"
                         />
                     </div>
                     <Button variant="primary" fullWidth type="submit" disabled={loading}>

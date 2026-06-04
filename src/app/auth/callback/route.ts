@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
         }
 
         if (!error) {
-            return NextResponse.redirect(new URL(next, req.url));
+            const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/de/account";
+            return NextResponse.redirect(new URL(safeNext, req.url));
         }
     }
 
