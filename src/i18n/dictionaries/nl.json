@@ -148,7 +148,21 @@
         "magicLinkSent": "E-mail verzonden!",
         "magicLinkSentDesc": "We hebben een inloglink naar uw e-mailadres gestuurd. Klik op de link om in te loggen.",
         "checkSpam": "Niet gevonden? Controleer uw spammap.",
-        "tryAgain": "Ander e-mailadres proberen"
+        "tryAgain": "Ander e-mailadres proberen",
+        "forgotPasswordTitle": "Wachtwoord opnieuw instellen",
+        "forgotPasswordDesc": "Voer je e-mailadres in en we sturen je een link om je wachtwoord opnieuw in te stellen.",
+        "sendResetLink": "Verstuur link",
+        "resetLinkSent": "Controleer je e-mail!",
+        "resetLinkSentDesc": "Als er een account bestaat voor dat e-mailadres, hebben we een link gestuurd om je wachtwoord opnieuw in te stellen.",
+        "resetPasswordTitle": "Kies een nieuw wachtwoord",
+        "newPassword": "Nieuw wachtwoord",
+        "confirmPassword": "Bevestig wachtwoord",
+        "passwordMismatch": "De wachtwoorden komen niet overeen.",
+        "updatePasswordButton": "Wachtwoord bijwerken",
+        "passwordUpdated": "Je wachtwoord is bijgewerkt.",
+        "resetLinkInvalid": "Deze link is ongeldig of verlopen. Vraag een nieuwe aan.",
+        "changePasswordTitle": "Wachtwoord wijzigen",
+        "backToLogin": "Terug naar inloggen"
     },
     "product": {
         "addedToCart": "Toegevoegd aan winkelwagen",

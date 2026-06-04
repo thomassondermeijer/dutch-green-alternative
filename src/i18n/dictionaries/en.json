@@ -148,7 +148,21 @@
         "magicLinkSent": "Check your email!",
         "magicLinkSentDesc": "We sent a login link to your email address. Click the link to sign in.",
         "checkSpam": "Don't see it? Check your spam folder.",
-        "tryAgain": "Try another email"
+        "tryAgain": "Try another email",
+        "forgotPasswordTitle": "Reset Your Password",
+        "forgotPasswordDesc": "Enter your email and we'll send you a link to reset your password.",
+        "sendResetLink": "Send Reset Link",
+        "resetLinkSent": "Check your email!",
+        "resetLinkSentDesc": "If an account exists for that email, we've sent a link to reset your password.",
+        "resetPasswordTitle": "Choose a New Password",
+        "newPassword": "New Password",
+        "confirmPassword": "Confirm Password",
+        "passwordMismatch": "Passwords do not match.",
+        "updatePasswordButton": "Update Password",
+        "passwordUpdated": "Your password has been updated.",
+        "resetLinkInvalid": "This reset link is invalid or has expired. Please request a new one.",
+        "changePasswordTitle": "Change Password",
+        "backToLogin": "Back to login"
     },
     "product": {
         "addedToCart": "Added to cart",

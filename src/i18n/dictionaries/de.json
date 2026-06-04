@@ -148,7 +148,21 @@
         "magicLinkSent": "E-Mail gesendet!",
         "magicLinkSentDesc": "Wir haben einen Anmeldelink an Ihre E-Mail-Adresse gesendet. Klicken Sie auf den Link, um sich anzumelden.",
         "checkSpam": "Nicht gefunden? Überprüfen Sie Ihren Spam-Ordner.",
-        "tryAgain": "Andere E-Mail versuchen"
+        "tryAgain": "Andere E-Mail versuchen",
+        "forgotPasswordTitle": "Passwort zurücksetzen",
+        "forgotPasswordDesc": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen deines Passworts.",
+        "sendResetLink": "Link senden",
+        "resetLinkSent": "Überprüfe deine E-Mails!",
+        "resetLinkSentDesc": "Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir dir einen Link zum Zurücksetzen deines Passworts gesendet.",
+        "resetPasswordTitle": "Neues Passwort wählen",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Passwort bestätigen",
+        "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+        "updatePasswordButton": "Passwort aktualisieren",
+        "passwordUpdated": "Dein Passwort wurde aktualisiert.",
+        "resetLinkInvalid": "Dieser Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
+        "changePasswordTitle": "Passwort ändern",
+        "backToLogin": "Zurück zur Anmeldung"
     },
     "product": {
         "addedToCart": "Zum Warenkorb hinzugefügt",
