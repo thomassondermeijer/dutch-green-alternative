@@ -7,9 +7,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const next = searchParams.get("next") || "/de/account";
+    const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/de/account";
 
     if (code) {
         const cookieStore = await cookies();
+        // Build the post-exchange redirect up front so the auth cookies Supabase
+        // issues during exchangeCodeForSession are written onto THIS response. A
+        // NextResponse.redirect created afterwards would not carry those Set-Cookie
+        // headers, so the session would never reach the browser (user lands logged out).
+        const response = NextResponse.redirect(new URL(safeNext, req.url));
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -19,6 +25,7 @@ export async function GET(req: NextRequest) {
                     setAll(cookiesToSet) {
                         cookiesToSet.forEach(({ name, value, options }) => {
                             cookieStore.set(name, value, options);
+                            response.cookies.set(name, value, options);
                         });
                     },
                 },
@@ -46,8 +53,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (!error) {
-            const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/de/account";
-            return NextResponse.redirect(new URL(safeNext, req.url));
+            return response;
         }
     }
 
