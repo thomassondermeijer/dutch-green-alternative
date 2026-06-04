@@ -215,6 +215,16 @@
     background-color: var(--color-primary);
 }
 
+button.sidebarLink {
+    border: none;
+    background: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+}
+
 .logoutBtn {
     display: flex;
     align-items: center;
