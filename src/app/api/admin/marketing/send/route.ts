@@ -33,11 +33,6 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
     return url;
 }
 
-/**
- * Resend Free Plan: 100 emails/day, 3000/month.
- * We send up to DAILY_LIMIT per cron run and resume the next day.
- */
-const DAILY_LIMIT = 90; // under 100 to leave room for transactional emails (order confirmations, support replies)
 const BATCH_SIZE = 50;  // smaller batches for reliability
 const BATCH_DELAY = 2000;
 const NAME_FALLBACK: Record<string, string> = { de: "Kunde", nl: "Klant", en: "Customer" };
@@ -82,24 +77,6 @@ export async function PUT(req: NextRequest) {
     } catch {
         return NextResponse.json({ error: "Count failed", count: 0 }, { status: 500 });
     }
-}
-
-/**
- * Get how many emails were sent today (UTC) across ALL types.
- * This counts against the Resend 100/day free plan limit.
- */
-async function getEmailsSentToday(): Promise<number> {
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-
-    const { count } = await supabaseAdmin
-        .from("email_log")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "sent")
-        .gte("sent_at", todayStart.toISOString());
-
-    console.log(`[Marketing Send] Emails sent today (UTC): ${count || 0}`);
-    return count || 0;
 }
 
 /**
@@ -150,25 +127,6 @@ export async function POST(req: NextRequest) {
                 const before = recipients.length;
                 recipients = recipients.filter((r) => !alreadySent.has(r.email.toLowerCase()));
                 console.log(`[Marketing Send] Skipped ${before - recipients.length} already-sent recipients`);
-            }
-
-            // Check daily limit
-            const sentToday = await getEmailsSentToday();
-            const remaining = Math.max(0, DAILY_LIMIT - sentToday);
-
-            if (remaining === 0) {
-                // Daily limit reached — keep as "sending" for tomorrow
-                await supabaseAdmin.from("marketing_campaigns").update({ status: "sending" }).eq("id", campaignId);
-                return NextResponse.json({
-                    success: true, sent: 0, failed: 0, remaining: recipients.length,
-                    message: `Daily limit reached (${DAILY_LIMIT}/day). ${recipients.length} remaining — will continue tomorrow.`,
-                });
-            }
-
-            // Cap recipients to daily remaining
-            if (recipients.length > remaining) {
-                console.log(`[Marketing Send] Capping to ${remaining} (daily limit). ${recipients.length - remaining} will be sent tomorrow.`);
-                recipients = recipients.slice(0, remaining);
             }
 
             // Set status to "sending"
@@ -262,7 +220,7 @@ export async function POST(req: NextRequest) {
                 success: true, sent: sentCount, failed: failedCount,
                 totalSent, remaining: unsent.length,
                 message: unsent.length > 0
-                    ? `Sent ${sentCount} today (${totalSent} total). ${unsent.length} remaining — will continue tomorrow.`
+                    ? `Sent ${sentCount} batch (${totalSent} total). ${unsent.length} remaining.`
                     : `All ${totalSent} emails sent!`,
             });
         }

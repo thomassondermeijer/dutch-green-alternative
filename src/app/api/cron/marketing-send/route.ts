@@ -23,25 +23,6 @@ export async function GET(req: NextRequest) {
     try {
         const now = new Date().toISOString();
 
-        // ── Daily guard: check if we already sent marketing emails today ──
-        const todayStart = new Date();
-        todayStart.setUTCHours(0, 0, 0, 0);
-
-        const { count: sentToday } = await supabaseAdmin
-            .from("email_log")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "sent")
-            .gte("sent_at", todayStart.toISOString());
-
-        const DAILY_LIMIT = 90;
-        if ((sentToday || 0) >= DAILY_LIMIT) {
-            console.log(`[Marketing Cron] Daily limit reached (${sentToday}/${DAILY_LIMIT}). Skipping.`);
-            return NextResponse.json({
-                message: `Daily limit already reached (${sentToday} sent today). Will retry tomorrow.`,
-                sent: 0,
-            });
-        }
-
         // Find campaigns ready to send:
         // - "approved" with scheduled_for <= now (new campaigns)
         // - "sending" (partially sent, continue daily)
