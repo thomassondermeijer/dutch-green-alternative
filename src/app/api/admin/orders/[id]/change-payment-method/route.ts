@@ -126,6 +126,13 @@ export async function POST(
 
             const locale = order.language || "de";
             const addr = order.shipping_address;
+            if (!addr) {
+                console.error("[Change Payment Method] Missing shipping address; skipping invoice email");
+                return NextResponse.json({
+                    success: true,
+                    warning: "Order updated, but the invoice email could not be sent — shipping address is missing.",
+                });
+            }
             const addrStr = `${addr.first_name} ${addr.last_name}\n${addr.street} ${addr.house_number}\n${addr.postal_code} ${addr.city}\n${addr.country}`;
             const dueDateStr = new Date(update.payment_due_date as string).toLocaleDateString(
                 locale === "de" ? "de-DE" : locale === "nl" ? "nl-NL" : "en-GB",
@@ -160,7 +167,10 @@ export async function POST(
 
             const sendResult = await sendEmail({ to: order.customer_email, subject, html });
             if (!sendResult.success) {
-                warning = "Order updated, but the invoice email failed to send. Resend it manually.";
+                const suppressed = "suppressed" in sendResult && sendResult.suppressed;
+                warning = suppressed
+                    ? "Order updated. Invoice email skipped — the customer's address is on the suppression list."
+                    : "Order updated, but the invoice email failed to send. Resend it manually.";
             } else {
                 const { error: logError } = await supabaseAdmin.from("order_communications").insert({
                     order_id: orderId,
