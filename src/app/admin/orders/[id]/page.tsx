@@ -111,6 +111,8 @@ export default function OrderDetailPage() {
     const [trackingUrl, setTrackingUrl] = useState("");
     const [notes, setNotes] = useState("");
     const [paymentStatus, setPaymentStatus] = useState("");
+    const [newPaymentMethod, setNewPaymentMethod] = useState("");
+    const [changingMethod, setChangingMethod] = useState(false);
 
     const loadOrder = useCallback(async () => {
         const supabase = createClient();
@@ -128,6 +130,7 @@ export default function OrderDetailPage() {
             setTrackingUrl(orderData.tracking_url || "");
             setNotes(orderData.notes || "");
             setPaymentStatus(orderData.payment_status || "unpaid");
+            setNewPaymentMethod(orderData.payment_method || "ideal");
         }
 
         const { data: itemsData } = await supabase
@@ -225,6 +228,44 @@ export default function OrderDetailPage() {
             await loadOrder();
         }
         setSaving(false);
+    };
+
+    const handleChangePaymentMethod = async () => {
+        if (!order) return;
+        if (newPaymentMethod === order.payment_method) {
+            setMessage({ type: "error", text: "Select a different payment method." });
+            return;
+        }
+        if (newPaymentMethod === "invoice") {
+            if (!confirm("Switch to invoice? This resends the invoice email with the updated total and a new 14-day due date.")) {
+                return;
+            }
+        }
+        setChangingMethod(true);
+        setMessage(null);
+
+        try {
+            const res = await fetch(`/api/admin/orders/${orderId}/change-payment-method`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ paymentMethod: newPaymentMethod }),
+            });
+            const result = await res.json();
+
+            if (res.ok && result.success) {
+                setMessage({
+                    type: "success",
+                    text: result.warning ? `Method updated — ${result.warning}` : "Payment method updated.",
+                });
+                await loadOrder();
+            } else {
+                setMessage({ type: "error", text: result.error || "Failed to change payment method" });
+            }
+        } catch {
+            setMessage({ type: "error", text: "Network error" });
+        }
+
+        setChangingMethod(false);
     };
 
     const handleDelete = async () => {
@@ -508,6 +549,35 @@ export default function OrderDetailPage() {
                                 <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                             ))}
                         </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Payment Method</label>
+                        {(order.payment_status === "unpaid" || order.payment_status === "overdue") ? (
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <select
+                                    className={styles.formSelect}
+                                    value={newPaymentMethod}
+                                    onChange={(e) => setNewPaymentMethod(e.target.value)}
+                                    style={{ flex: 1 }}
+                                >
+                                    {["ideal", "creditcard", "bancontact", "sofortbanking", "invoice"].map((m) => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={handleChangePaymentMethod}
+                                    disabled={changingMethod || newPaymentMethod === order.payment_method}
+                                    style={{ background: "#eff6ff", color: "#1e40af", borderColor: "#bfdbfe" }}
+                                >
+                                    {changingMethod ? "..." : "Update"}
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{ padding: "0.5rem 0", color: "#6b7280", fontSize: "0.875rem" }}>
+                                {order.payment_method || "—"} <em>(locked — order is {order.payment_status})</em>
+                            </div>
+                        )}
                     </div>
                     <div className={styles.formGroup}>
                         <label className={styles.formLabel}>Tracking Number</label>
