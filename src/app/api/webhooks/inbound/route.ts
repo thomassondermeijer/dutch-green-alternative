@@ -116,6 +116,40 @@ export async function POST(req: NextRequest) {
             console.log(`[Inbound] Webhook payload data keys: ${Object.keys(data).join(", ")}`);
             console.log(`[Inbound] Webhook data:`, JSON.stringify({ email_id: data.email_id, id: data.id, from: data.from, subject: data.subject }));
 
+            // ── Recipient tenancy guard ──
+            // Resend webhooks are ACCOUNT-scoped, not domain-scoped: this endpoint
+            // also receives email.received events for sibling domains on the shared
+            // Resend account (incl. inbox.littlestories.online). Drop anything not
+            // addressed to a DGA-owned domain so we don't create cross-tenant tickets.
+            // Runs before the Resend body fetch and any DB write.
+            const OUR_INBOUND_DOMAINS = ["dutchgreenalternative.nl"];
+            const parseAddr = (raw: unknown): string => {
+                const s = typeof raw === "string" ? raw : String((raw as { email?: string })?.email ?? raw ?? "");
+                const m = s.match(/<([^>]+)>/);
+                return (m ? m[1] : s).trim().toLowerCase();
+            };
+            const toArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : v ? [v] : []);
+            const allRecipients = [
+                ...toArray(data.to),
+                ...toArray(data.cc),
+                ...toArray(data.bcc),
+            ].map(parseAddr).filter(Boolean);
+
+            if (allRecipients.length === 0) {
+                // data.to is expected on email.received. If it's ever absent we process
+                // rather than silently drop a real customer email — but warn loudly so a
+                // payload-shape change gets noticed instead of resuming silent leakage.
+                console.warn(`[Inbound] email.received had no parseable recipients; processing anyway. data keys: ${Object.keys(data).join(", ")}`);
+            } else {
+                const forUs = allRecipients.some((addr) =>
+                    OUR_INBOUND_DOMAINS.some((d) => addr.endsWith(`@${d}`))
+                );
+                if (!forUs) {
+                    console.log(`[Inbound] Dropping cross-tenant mail (not a DGA recipient); recipients=${allRecipients.join(",")}`);
+                    return NextResponse.json({ received: true, ignored: true, reason: "not_our_domain" });
+                }
+            }
+
             from = data.from || "";
             emailSubject = data.subject || "(No Subject)";
 
