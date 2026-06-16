@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { Webhook } from "svix";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,7 +102,31 @@ async function fetchReceivedEmail(emailId: string, maxRetries = 3): Promise<Reco
  */
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
+        const rawBody = await req.text();
+
+        // ── Webhook signature verification (Svix / Resend) ──
+        // Authenticates that the event genuinely came from Resend, so this endpoint
+        // can't be used to forge support tickets. Enforced only when the inbound
+        // webhook's signing secret is configured, so deploying before the env var is
+        // set never breaks the support inbox. Resend signs each webhook endpoint with
+        // its own secret, so this uses a dedicated var (not the events-webhook one).
+        const webhookSecret = process.env.RESEND_INBOUND_WEBHOOK_SECRET || "";
+        if (webhookSecret) {
+            try {
+                new Webhook(webhookSecret).verify(rawBody, {
+                    "svix-id": req.headers.get("svix-id") || "",
+                    "svix-timestamp": req.headers.get("svix-timestamp") || "",
+                    "svix-signature": req.headers.get("svix-signature") || "",
+                });
+            } catch (err) {
+                console.warn("[Inbound] Rejected webhook — invalid signature:", err instanceof Error ? err.message : err);
+                return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+            }
+        } else {
+            console.warn("[Inbound] RESEND_INBOUND_WEBHOOK_SECRET not set — skipping signature verification. Set it to authenticate this endpoint.");
+        }
+
+        const body = JSON.parse(rawBody);
 
         // Handle Resend webhook format: { type: "email.received", data: { ... } }
         let from: string;

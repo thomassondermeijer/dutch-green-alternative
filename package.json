@@ -15,7 +15,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.8.0",
-    "resend": "^6.9.3"
+    "resend": "^6.9.3",
+    "svix": "^1.95.2"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.9",
