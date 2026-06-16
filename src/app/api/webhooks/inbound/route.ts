@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         // webhook's signing secret is configured, so deploying before the env var is
         // set never breaks the support inbox. Resend signs each webhook endpoint with
         // its own secret, so this uses a dedicated var (not the events-webhook one).
-        const webhookSecret = process.env.RESEND_INBOUND_WEBHOOK_SECRET || "";
+        const webhookSecret = process.env.DGA_RESEND_INBOUND_WEBHOOK_SECRET || "";
         if (webhookSecret) {
             try {
                 new Webhook(webhookSecret).verify(rawBody, {
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
             }
         } else {
-            console.warn("[Inbound] RESEND_INBOUND_WEBHOOK_SECRET not set — skipping signature verification. Set it to authenticate this endpoint.");
+            console.warn("[Inbound] DGA_RESEND_INBOUND_WEBHOOK_SECRET not set — skipping signature verification. Set it to authenticate this endpoint.");
         }
 
         const body = JSON.parse(rawBody);
