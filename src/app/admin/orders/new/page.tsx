@@ -171,7 +171,7 @@ export default function NewOrderPage() {
                         <input
                             className={styles.formInput}
                             value={customerQuery}
-                            onChange={(e) => setCustomerQuery(e.target.value)}
+                            onChange={(e) => { setCustomerQuery(e.target.value); if (e.target.value.trim().length < 2) setCustomerResults([]); }}
                             placeholder="Search by email or name…"
                             autoComplete="off"
                         />
