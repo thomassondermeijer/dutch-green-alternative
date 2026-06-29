@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     // Look up products by id (authoritative prices + names)
     const ids = [...new Set(body.items.map((i) => i.productId))];
     const { data: products, error: prodErr } = await supabaseAdmin
-        .from("products").select("id, slug, price, translations").in("id", ids);
+        .from("products").select("id, slug, price, translations").in("id", ids).eq("is_active", true);
     if (prodErr) {
         return NextResponse.json({ error: "Failed to load products" }, { status: 500 });
     }
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     for (const item of body.items) {
         const p = productMap.get(item.productId);
         if (!p) {
-            return NextResponse.json({ error: `Unknown product: ${item.productId}` }, { status: 400 });
+            return NextResponse.json({ error: `Product not found or inactive: ${item.productId}` }, { status: 400 });
         }
         const qty = Math.max(1, Math.floor(Number(item.quantity) || 1));
         const unitPrice = Number(p.price);
