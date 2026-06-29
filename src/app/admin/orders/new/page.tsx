@@ -8,6 +8,7 @@ import styles from "../../admin.module.css";
 type Product = { id: string; price: number; name: string };
 type LineItem = { productId: string; quantity: number };
 type Addr = { street: string; houseNumber: string; postalCode: string; city: string; country: string };
+type CustomerResult = { email: string; firstName: string; lastName: string; phone: string; language: "de" | "nl" | "en"; address: Addr | null };
 
 const emptyAddr: Addr = { street: "", houseNumber: "", postalCode: "", city: "", country: "DE" };
 const COUNTRIES = [["DE", "Germany"], ["NL", "Netherlands"], ["BE", "Belgium"], ["FR", "France"]];
@@ -37,6 +38,9 @@ export default function NewOrderPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
+    const [customerQuery, setCustomerQuery] = useState("");
+    const [customerResults, setCustomerResults] = useState<CustomerResult[]>([]);
+
     useEffect(() => {
         const supabase = createClient();
         supabase.from("products").select("id, price, translations").eq("is_active", true).order("sort_order")
@@ -50,6 +54,32 @@ export default function NewOrderPage() {
                 setProductsLoading(false);
             });
     }, []);
+
+    useEffect(() => {
+        const q = customerQuery.trim();
+        const t = setTimeout(async () => {
+            if (q.length < 2) { setCustomerResults([]); return; }
+            try {
+                const res = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                setCustomerResults(res.ok && Array.isArray(data.results) ? (data.results as CustomerResult[]) : []);
+            } catch {
+                setCustomerResults([]);
+            }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [customerQuery]);
+
+    const applyCustomer = (c: CustomerResult) => {
+        setEmail(c.email);
+        setFirstName(c.firstName);
+        setLastName(c.lastName);
+        setPhone(c.phone);
+        setLanguage(c.language);
+        if (c.address) setShipping({ ...c.address });
+        setCustomerQuery("");
+        setCustomerResults([]);
+    };
 
     const productById = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p])), [products]);
     const subtotal = useMemo(
@@ -136,6 +166,30 @@ export default function NewOrderPage() {
                 {/* Customer */}
                 <div className={styles.formCard} style={{ maxWidth: "100%", marginBottom: "1.5rem" }}>
                     <h3 className={styles.formSectionTitle} style={{ marginTop: 0 }}>Customer</h3>
+                    <div className={styles.formGroup} style={{ position: "relative", marginBottom: "1rem" }}>
+                        <label className={styles.formLabel}>Find existing customer</label>
+                        <input
+                            className={styles.formInput}
+                            value={customerQuery}
+                            onChange={(e) => setCustomerQuery(e.target.value)}
+                            placeholder="Search by email or name…"
+                            autoComplete="off"
+                        />
+                        {customerResults.length > 0 && (
+                            <div style={{ position: "absolute", zIndex: 10, top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px", marginTop: "4px", maxHeight: "260px", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                                {customerResults.map((c) => (
+                                    <button
+                                        key={c.email}
+                                        type="button"
+                                        onClick={() => applyCustomer(c)}
+                                        style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: "0.875rem" }}
+                                    >
+                                        <strong>{c.email}</strong>{(c.firstName || c.lastName) ? ` — ${[c.firstName, c.lastName].filter(Boolean).join(" ")}` : ""}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <div className={styles.formGrid}>
                         <div className={styles.formGroup}>
                             <label className={styles.formLabel}>Email *</label>
