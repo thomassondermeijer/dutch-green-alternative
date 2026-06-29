@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import styles from "../admin.module.css";
 
@@ -38,8 +39,11 @@ export default function OrdersPage() {
 
     return (
         <>
-            <div className={styles.pageHeader}>
+            <div className={styles.pageHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h1 className={styles.pageTitle}>Orders</h1>
+                <Link href="/admin/orders/new" className={styles.actionBtn} style={{ background: "#f0fdf4", color: "#065f46", borderColor: "#bbf7d0" }}>
+                    + New Order
+                </Link>
             </div>
 
             {loading ? (
