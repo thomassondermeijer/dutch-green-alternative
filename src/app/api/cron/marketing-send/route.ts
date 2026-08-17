@@ -8,10 +8,8 @@ const supabaseAdmin = createClient(
 
 /**
  * GET /api/cron/marketing-send
- * Hourly cron: sends approved/sending campaigns where scheduled_for <= now.
- * 
- * DAILY GUARD: Checks email_log to see if marketing emails were already sent today.
- * If yes, skips to avoid exceeding Resend's 100/day free plan limit.
+ * 5-minute cron: sends approved/sending campaigns where scheduled_for <= now.
+ * Sends 50 emails per run (every 5 minutes) to ensure smooth, high-deliverability sending.
  */
 export async function GET(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
@@ -25,7 +23,7 @@ export async function GET(req: NextRequest) {
 
         // Find campaigns ready to send:
         // - "approved" with scheduled_for <= now (new campaigns)
-        // - "sending" (partially sent, continue daily)
+        // - "sending" (partially sent, continue in 50-email chunks)
         const { data: campaigns } = await supabaseAdmin
             .from("marketing_campaigns")
             .select("id, status")
@@ -36,13 +34,13 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: "No campaigns to send", sent: 0 });
         }
 
-        // Only process ONE campaign per cron run to stay within limits
+        // Process ONE campaign per cron run
         const campaign = campaigns[0];
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "http://localhost:3000";
         const res = await fetch(`${baseUrl}/api/admin/marketing/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ campaignId: campaign.id }),
+            body: JSON.stringify({ campaignId: campaign.id, maxRecipients: 50 }),
         });
 
         const result = await res.json();
@@ -57,3 +55,4 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Cron failed" }, { status: 500 });
     }
 }
+
