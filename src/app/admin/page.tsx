@@ -126,14 +126,19 @@ export default function AdminDashboard() {
         todayStart.setHours(0, 0, 0, 0);
 
         // ═══ ACTIVITY HUB DATA ═══
+        // Support tickets come from the API, not the browser client: the ticket
+        // tables are locked down (RLS on, no anon grants) because they hold
+        // customer names, addresses and message bodies.
         const [ticketsRes, campaignsRes, bouncesRes, recentOrdersRes] = await Promise.all([
-            supabase.from("support_tickets").select("id, subject, customer_email, customer_name, status, created_at").in("status", ["open", "pending"]).order("created_at", { ascending: false }).limit(20),
+            fetch("/api/admin/support/open-summary")
+                .then((r) => (r.ok ? r.json() : { tickets: [] }))
+                .catch(() => ({ tickets: [] })),
             supabase.from("marketing_campaigns").select("id, name, status, subject, created_at").in("status", ["sending", "scheduled"]),
             supabase.from("email_suppression").select("id, email, reason, created_at").order("created_at", { ascending: false }).limit(10),
             supabase.from("orders").select("id, total, status, payment_status, customer_email, created_at, shipping_address").order("created_at", { ascending: false }).limit(15),
         ]);
 
-        const openTickets = ticketsRes.data || [];
+        const openTickets = ticketsRes.tickets || [];
         const activeCampaigns = campaignsRes.data || [];
         const recentBounces = bouncesRes.data || [];
         const recentOrders = recentOrdersRes.data || [];

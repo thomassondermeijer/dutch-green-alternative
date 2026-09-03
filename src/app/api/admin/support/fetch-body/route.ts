@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdmin } from "@/lib/auth/admin";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 
@@ -15,6 +16,10 @@ const supabaseAdmin = createClient(
  * returns the body content.
  */
 export async function POST(req: NextRequest) {
+    if (!(await isAdmin())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (!RESEND_API_KEY) {
         return NextResponse.json(
             { error: "RESEND_API_KEY not configured" },
