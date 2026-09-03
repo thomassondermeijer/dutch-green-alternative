@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendBatchEmails, type BatchEmailItem } from "@/lib/resend/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
+import { unsubscribeUrl, unsubscribeHeaders } from "@/lib/marketing/unsubscribe-token";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -227,11 +228,19 @@ export async function POST(req: NextRequest) {
                 couponReason: campaign.coupon_reason || "",
                 couponValidUntil,
                 locale,
+                unsubscribeUrl: unsubscribeUrl(recipient.email, locale),
             });
 
             return {
                 recipient, locale, subject,
-                batchItem: { to: recipient.email, subject, html },
+                batchItem: {
+                    to: recipient.email,
+                    subject,
+                    html,
+                    // RFC 8058 one-click: puts the native Unsubscribe button in
+                    // Gmail, Yahoo and Apple Mail. Signed per recipient.
+                    headers: unsubscribeHeaders(recipient.email, locale),
+                },
             };
         });
 

@@ -10,6 +10,8 @@ type MarketingEmailData = {
   couponReason: string;
   couponValidUntil?: string;
   locale: string;
+  /** Signed, per-recipient unsubscribe link. Required for real sends. */
+  unsubscribeUrl?: string;
 };
 
 const labels: Record<string, Record<string, string>> = {
@@ -45,7 +47,9 @@ const labels: Record<string, Record<string, string>> = {
 export function buildMarketingNewsletterEmail(data: MarketingEmailData): string {
   const t = labels[data.locale] || labels.de;
   const shopUrl = `https://dutchgreenalternative.nl/${data.locale}?coupon=${data.couponCode}`;
-  const unsubUrl = `https://dutchgreenalternative.nl/unsubscribe`;
+  // Signed, per-recipient link. `unsubscribeUrl` is missing only in previews;
+  // the old bare /unsubscribe path never existed as a route and always 404'd.
+  const unsubUrl = data.unsubscribeUrl || `https://dutchgreenalternative.nl/${data.locale}/unsubscribe`;
 
   const discountHeadline = t.discountHeadline.replace("{discount}", String(data.couponDiscount));
   const seasonalContext = t.inHonorOf.replace("{reason}", data.couponReason);
