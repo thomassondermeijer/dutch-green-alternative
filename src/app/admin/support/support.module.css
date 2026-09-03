@@ -798,3 +798,59 @@
     font-family: inherit;
     font-size: inherit;
 }
+
+/* ── Marketing opt-out, on the customer card ────────────────────────── */
+.marketingRow {
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+}
+
+.confirmRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.unsubBtn,
+.unsubConfirmBtn {
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-body);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.unsubBtn {
+    border: 1px solid var(--color-border);
+    background: var(--color-white);
+    color: var(--color-text-muted);
+}
+
+.unsubBtn:hover {
+    border-color: #8b6116;
+    color: #8b6116;
+}
+
+.unsubConfirmBtn {
+    border: 1px solid #8b6116;
+    background: #8b6116;
+    color: var(--color-white);
+}
+
+.unsubConfirmBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.suppressedBadge {
+    display: inline-block;
+    font-size: var(--font-size-sm);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    background: #f5edda;
+    color: #8b6116;
+}

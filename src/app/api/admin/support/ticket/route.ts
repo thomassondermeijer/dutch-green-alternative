@@ -50,8 +50,9 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // Customer context: every order they've placed and their other tickets.
-    const [{ data: allOrders }, { data: otherTickets }] = await Promise.all([
+    // Customer context: orders, other tickets, and whether they still receive
+    // marketing — the agent needs to know that before promising anything.
+    const [{ data: allOrders }, { data: otherTickets }, { data: suppression }] = await Promise.all([
         supportDb
             .from("orders")
             .select("id, status, payment_status, total, created_at")
@@ -66,6 +67,12 @@ export async function GET(req: NextRequest) {
             .neq("id", id)
             .order("created_at", { ascending: false })
             .limit(10),
+        supportDb
+            .from("email_suppression")
+            .select("reason, source, created_at")
+            .ilike("email", ticket.customer_email)
+            .order("created_at", { ascending: false })
+            .limit(1),
     ]);
 
     const orders = allOrders || [];
@@ -82,6 +89,7 @@ export async function GET(req: NextRequest) {
             orderCount: orders.length,
             lifetimeValue,
             otherTickets: otherTickets || [],
+            suppression: suppression?.[0] || null,
         },
     });
 }

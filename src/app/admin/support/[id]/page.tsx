@@ -55,6 +55,7 @@ type CustomerInfo = {
     orderCount: number;
     lifetimeValue: number;
     otherTickets: { id: string; subject: string; status: string; created_at: string }[];
+    suppression: { reason: string; source: string | null; created_at: string } | null;
 };
 
 function timeAgo(date: string): string {
@@ -89,6 +90,8 @@ export default function TicketDetailPage() {
     const [showAiContext, setShowAiContext] = useState(false);
     const [draftTranslation, setDraftTranslation] = useState<string | null>(null);
     const [draftTranslating, setDraftTranslating] = useState(false);
+    const [confirmUnsub, setConfirmUnsub] = useState(false);
+    const [unsubBusy, setUnsubBusy] = useState(false);
 
     const fetchMessageBody = useCallback(async (messageId: string, resendEmailId: string) => {
         setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, fetchingBody: true } : m)));
@@ -175,6 +178,25 @@ export default function TicketDetailPage() {
             console.error("[support] Spam action failed:", err);
             setError("That action didn't go through. Try again.");
         }
+    };
+
+    const unsubscribeCustomer = async () => {
+        if (!ticket) return;
+        setUnsubBusy(true);
+        try {
+            const res = await fetch("/api/admin/support/unsubscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ticketId: ticket.id }),
+            });
+            if (!res.ok) throw new Error(`Request failed (${res.status})`);
+            setConfirmUnsub(false);
+            await loadTicket();
+        } catch (err) {
+            console.error("[support] Unsubscribe failed:", err);
+            setError("Could not record the unsubscribe. Try again.");
+        }
+        setUnsubBusy(false);
     };
 
     const sendReply = async () => {
@@ -391,13 +413,35 @@ export default function TicketDetailPage() {
                 </div>
             )}
 
-            {customer && (customer.orderCount > 0 || customer.otherTickets.length > 0) && (
+            {customer && (
                 <div className={styles.customerCard}>
                     <div className={styles.orderCardTitle}>👤 Customer history</div>
                     <div className={styles.customerStats}>
                         <span><strong>{customer.orderCount}</strong> order{customer.orderCount === 1 ? "" : "s"}</span>
                         <span><strong>€{customer.lifetimeValue.toFixed(2)}</strong> lifetime</span>
                         <span><strong>{customer.otherTickets.length}</strong> other ticket{customer.otherTickets.length === 1 ? "" : "s"}</span>
+                    </div>
+
+                    <div className={styles.marketingRow}>
+                        {customer.suppression ? (
+                            <span className={styles.suppressedBadge}>
+                                ✉︎ No marketing email — {customer.suppression.reason} {timeAgo(customer.suppression.created_at)}
+                            </span>
+                        ) : confirmUnsub ? (
+                            <span className={styles.confirmRow}>
+                                <span className={styles.muted}>
+                                    Unsubscribe {ticket.customer_email} from marketing? Order emails still go out.
+                                </span>
+                                <button className={styles.unsubConfirmBtn} onClick={unsubscribeCustomer} disabled={unsubBusy}>
+                                    {unsubBusy ? "Unsubscribing…" : "Yes, unsubscribe"}
+                                </button>
+                                <button className={styles.linkBtn} onClick={() => setConfirmUnsub(false)}>Cancel</button>
+                            </span>
+                        ) : (
+                            <button className={styles.unsubBtn} onClick={() => setConfirmUnsub(true)}>
+                                ✉︎ Unsubscribe from marketing
+                            </button>
+                        )}
                     </div>
                     {customer.otherTickets.length > 0 && (
                         <ul className={styles.customerTickets}>
