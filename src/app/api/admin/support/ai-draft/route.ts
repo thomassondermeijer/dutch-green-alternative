@@ -1,96 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdmin } from "@/lib/auth/admin";
+import { chat, isConfigured, MODELS } from "@/lib/ai/openrouter";
 
-const GEMINI_KEY = process.env.GOOGLE_AI_STUDIO_KEY;
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const LANGUAGES: Record<string, string> = {
+    de: "German",
+    nl: "Dutch",
+    en: "English",
+    fr: "French",
+    it: "Italian",
+    es: "Spanish",
+};
+
+const SIGN_OFFS: Record<string, string> = {
+    de: "Mit freundlichen Grüßen",
+    nl: "Met vriendelijke groet",
+    en: "Kind regards",
+};
+
+type IncomingMessage = { direction: string; body: string; from: string };
 
 /**
  * POST /api/admin/support/ai-draft
- * Generates an AI draft reply using Gemini.
+ * Drafts a reply for the agent to review, edit and send. Never sends anything.
  */
 export async function POST(req: NextRequest) {
-    if (!GEMINI_KEY) {
-        return NextResponse.json({ error: "GOOGLE_AI_STUDIO_KEY not configured" }, { status: 500 });
+    if (!(await isAdmin())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!isConfigured()) {
+        return NextResponse.json({ error: "OPENROUTER_API_KEY not configured" }, { status: 500 });
     }
 
     try {
         const { messages, customerLanguage, orderInfo, adminContext } = await req.json();
 
-        const langMap: Record<string, string> = {
-            de: "German",
-            nl: "Dutch",
-            en: "English",
-        };
-        const lang = langMap[customerLanguage] || "German";
+        const language = LANGUAGES[customerLanguage] || "German";
+        const signOff = SIGN_OFFS[customerLanguage] || SIGN_OFFS.en;
 
-        // Build context
-        let orderContext = "";
-        if (orderInfo) {
-            orderContext = `
-CUSTOMER ORDER CONTEXT:
-- Order status: ${orderInfo.status}
-- Payment status: ${orderInfo.paymentStatus}
-- Total: €${orderInfo.total}
-- Products: ${orderInfo.items.join(", ")}
-`;
-        }
+        const system = `You are a customer support agent for Dutch Green Alternative, a CBD oil company in the Netherlands.
 
-        let adminInstructions = "";
-        if (adminContext) {
-            adminInstructions = `
-ADMIN INSTRUCTIONS (follow these closely):
-${adminContext}
-`;
-        }
+RULES
+1. Write in ${language} — the customer's language.
+2. Be professional, warm and direct. Two to four short paragraphs.
+3. Use the customer's first name if you know it.
+4. Sign off with "${signOff}" followed by "Dutch Green Alternative Team".
+5. Use the order context below for anything about orders, shipping or delivery. Never invent an order detail, tracking number or date that isn't given to you.
+6. On product questions you may cover dosage (start low, 1-2 drops), quality (organic, lab-tested) and storage (cool and dark).
+7. Never make medical claims. CBD is a food supplement — for health questions, recommend speaking to a doctor.
+8. If you cannot answer from what you have been given, say what you need from the customer rather than guessing.
 
-        const conversationHistory = messages
-            .map((m: { direction: string; body: string; from: string }) =>
-                `${m.direction === "inbound" ? "CUSTOMER" : "AGENT"}: ${m.body}`
-            )
+Write only the reply body. No subject line, no commentary.`;
+
+        const conversation = (messages as IncomingMessage[] | undefined || [])
+            .map((m) => `${m.direction === "inbound" ? "CUSTOMER" : "AGENT"}: ${m.body}`)
             .join("\n\n");
 
-        const systemPrompt = `You are a customer support agent for Dutch Green Alternative, a premium CBD oil company based in the Netherlands. 
+        const orderContext = orderInfo
+            ? `ORDER CONTEXT
+- Status: ${orderInfo.status}
+- Payment: ${orderInfo.paymentStatus}
+- Total: €${orderInfo.total}
+- Products: ${(orderInfo.items || []).join(", ")}
 
-RULES:
-1. Reply in ${lang} (the customer's language).
-2. Be professional, warm, and helpful.
-3. Keep responses concise — 2-4 short paragraphs max.
-4. Use the customer's first name if known.
-5. Sign off with "Mit freundlichen Grüßen" (German), "Met vriendelijke groet" (Dutch), or "Kind regards" (English), followed by "Dutch Green Alternative Team".
-6. If the customer asks about order status, shipping, or delivery, use the order context provided.
-7. For product questions about CBD oil, you can mention: dosage recommendations (start low, 1-2 drops), quality (organic, lab-tested), and storage (cool, dark place).
-8. Never make medical claims. If asked about health benefits, mention that CBD is a food supplement and recommend consulting a doctor.
+`
+            : "";
 
-${orderContext}
-${adminInstructions}
-CONVERSATION SO FAR:
-${conversationHistory}
+        const instructions = adminContext
+            ? `INSTRUCTIONS FROM THE AGENT (follow these closely)
+${adminContext}
 
-Generate a professional reply to the customer's latest message.`;
+`
+            : "";
 
-        const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: systemPrompt }] }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 500,
-                },
-            }),
+        const result = await chat({
+            model: MODELS.WRITE,
+            system,
+            prompt: `${orderContext}${instructions}CONVERSATION SO FAR
+${conversation}
+
+Write the reply to the customer's most recent message.`,
+            temperature: 0.6,
+            maxTokens: 2500,
+            reasoningEffort: "medium",
+            timeoutMs: 45_000,
         });
 
-        if (!res.ok) {
-            const error = await res.text();
-            console.error("[AI Draft] Gemini error:", error);
-            return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
+        if (!result.ok) {
+            return NextResponse.json({ error: "AI generation failed" }, { status: 502 });
         }
 
-        const data = await res.json();
-        const draft = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-        return NextResponse.json({ draft: draft.trim() });
+        return NextResponse.json({ draft: result.text });
     } catch (err) {
-        console.error("[AI Draft]", err);
+        console.error("[support/ai-draft]", err);
         return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
     }
 }

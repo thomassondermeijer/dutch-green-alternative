@@ -1,60 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdmin } from "@/lib/auth/admin";
+import { chat, isConfigured, MODELS } from "@/lib/ai/openrouter";
 
-const GEMINI_KEY = process.env.GOOGLE_AI_STUDIO_KEY;
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const LANGUAGES: Record<string, string> = {
+    en: "English",
+    de: "German",
+    nl: "Dutch",
+    fr: "French",
+    it: "Italian",
+    es: "Spanish",
+};
 
 /**
  * POST /api/admin/support/translate
- * Translates text to a target language using Gemini.
+ * Translates a support message into the target language.
  */
 export async function POST(req: NextRequest) {
-    if (!GEMINI_KEY) {
-        return NextResponse.json({ error: "GOOGLE_AI_STUDIO_KEY not configured" }, { status: 500 });
+    if (!(await isAdmin())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!isConfigured()) {
+        return NextResponse.json({ error: "OPENROUTER_API_KEY not configured" }, { status: 500 });
     }
 
     try {
         const { text, targetLanguage } = await req.json();
 
-        if (!text) {
+        if (typeof text !== "string" || !text.trim()) {
             return NextResponse.json({ error: "Missing text" }, { status: 400 });
         }
 
-        const langMap: Record<string, string> = {
-            en: "English",
-            de: "German",
-            nl: "Dutch",
-        };
-        const target = langMap[targetLanguage] || "English";
+        const target = LANGUAGES[targetLanguage] || "English";
 
-        const prompt = `Translate the following text to ${target}. Return ONLY the translation, no explanations or markers.
-
-Text to translate:
-${text}`;
-
-        const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 1000,
-                },
-            }),
+        const result = await chat({
+            model: MODELS.CLASSIFY,
+            system: `You are a translator for a Dutch CBD webshop's support desk. Translate the user's text into ${target}. Return only the translation — no preamble, no quotes, no notes. Preserve line breaks, names, order numbers and product names exactly as they appear.`,
+            prompt: text.slice(0, 8000),
+            temperature: 0.2,
+            maxTokens: 3000,
         });
 
-        if (!res.ok) {
-            const error = await res.text();
-            console.error("[Translate] Gemini error:", error);
-            return NextResponse.json({ error: "Translation failed" }, { status: 500 });
+        if (!result.ok) {
+            return NextResponse.json({ error: "Translation failed" }, { status: 502 });
         }
 
-        const data = await res.json();
-        const translation = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-        return NextResponse.json({ translation: translation.trim() });
+        return NextResponse.json({ translation: result.text });
     } catch (err) {
-        console.error("[Translate]", err);
+        console.error("[support/translate]", err);
         return NextResponse.json({ error: "Translation failed" }, { status: 500 });
     }
 }
