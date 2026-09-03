@@ -20,9 +20,15 @@ type SendEmailOptions = {
     html: string;
     replyTo?: string;
     emailType?: EmailType;
+    /**
+     * Extra RFC 5322 headers. Support replies set Message-ID / In-Reply-To /
+     * References here so the conversation threads in the customer's mail
+     * client and their reply comes back matchable.
+     */
+    headers?: Record<string, string>;
 };
 
-export async function sendEmail({ to, subject, html, replyTo, emailType = "transactional" }: SendEmailOptions) {
+export async function sendEmail({ to, subject, html, replyTo, emailType = "transactional", headers }: SendEmailOptions) {
     try {
         // Check suppression list before sending
         const suppressed = await isEmailSuppressed(to, emailType);
@@ -37,6 +43,7 @@ export async function sendEmail({ to, subject, html, replyTo, emailType = "trans
             subject,
             html,
             replyTo: replyTo || "info@dutchgreenalternative.nl",
+            ...(headers ? { headers } : {}),
         });
 
         if (error) {
@@ -61,6 +68,12 @@ export type BatchEmailItem = {
     html: string;
     replyTo?: string;
     emailType?: EmailType;
+    /**
+     * Per-recipient RFC 5322 headers. Marketing sends put the recipient's
+     * signed List-Unsubscribe / List-Unsubscribe-Post here, which is what
+     * makes Gmail, Yahoo and Apple Mail show their native Unsubscribe button.
+     */
+    headers?: Record<string, string>;
 };
 
 export type BatchResult = {
@@ -99,6 +112,7 @@ export async function sendBatchEmails(emails: BatchEmailItem[], emailType: Email
         subject: e.subject,
         html: e.html,
         replyTo: e.replyTo || "info@dutchgreenalternative.nl",
+        ...(e.headers ? { headers: e.headers } : {}),
     }));
 
     try {
