@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdmin } from "@/lib/auth/admin";
 import { sendBatchEmails, type BatchEmailItem } from "@/lib/resend/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
 import { unsubscribeUrl, unsubscribeHeaders } from "@/lib/marketing/unsubscribe-token";
@@ -146,6 +147,14 @@ async function getCompletedRecipients(campaignId: string): Promise<{ sent: Set<s
 
 // POST: send campaign using Resend Batch API (throttled to 10 emails per run for cron)
 export async function POST(req: NextRequest) {
+    // Two legitimate callers: an admin in the browser, or the 5-minute cron
+    // (/api/cron/marketing-send) which forwards its own secret.
+    const cronSecret = process.env.CRON_SECRET;
+    const bearer = req.headers.get("authorization");
+    const fromCron = Boolean(cronSecret) && bearer === `Bearer ${cronSecret}`;
+    if (!fromCron && !(await isAdmin())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     try {
         const { campaignId, testEmail, testLocale, maxRecipients = 10 } = await req.json();
         if (!campaignId) return NextResponse.json({ error: "campaignId required" }, { status: 400 });

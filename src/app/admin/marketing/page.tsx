@@ -193,8 +193,8 @@ export default function MarketingPage() {
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     supabase.removeAllChannels();
-                    reject(new Error("Generation timed out after 3 minutes"));
-                }, 180000);
+                    reject(new Error("Still generating after 6 minutes — check the Campaigns tab; it will finish or show as failed there"));
+                }, 360000);
 
                 const channel = supabase
                     .channel(`campaign-${campaignId}`)
@@ -204,8 +204,10 @@ export default function MarketingPage() {
                     }, (payload) => {
                         const camp = payload.new as Campaign;
                         const log = (camp.generation_log || {}) as Record<string, string>;
-                        if (log.step === "scrape_done") setGenProgress("✍️ AI writing email content...");
-                        else if (log.step === "ai_done") setGenProgress("🎨 Generating product image...");
+                        const step = String(log.step || "");
+                        if (step.startsWith("0_") || step.startsWith("1_") || step.startsWith("2_")) setGenProgress("🔍 Reading article & picking the offer...");
+                        else if (step.startsWith("3_")) setGenProgress("✍️ AI writing email content...");
+                        else if (step.startsWith("4_") || step.startsWith("5_")) setGenProgress("🎨 Generating product image...");
 
                         if (camp.status === "draft") {
                             clearTimeout(timeout); channel.unsubscribe();
@@ -228,6 +230,32 @@ export default function MarketingPage() {
         setGeneratingId(null);
         setGenProgress("");
     };
+
+    // ═══ Retry a failed or stuck generation ═══
+    const handleRetry = async (campaignId: string) => {
+        setGeneratingId(campaignId);
+        setMessage(null);
+        try {
+            setGenProgress("Restarting generation...");
+            const res = await fetch("/api/admin/marketing/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ campaignId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to restart generation");
+            showMsg("success", "Generation restarted — this card will update as it progresses.");
+        } catch (err) {
+            showMsg("error", err instanceof Error ? err.message : "Retry failed");
+        }
+        loadCampaigns();
+        setGeneratingId(null);
+        setGenProgress("");
+    };
+
+    /** A campaign that has said "generating" for over ten minutes is not generating. */
+    const isStuck = (camp: Campaign) =>
+        camp.status === "generating" && Date.now() - new Date(camp.created_at).getTime() > 10 * 60 * 1000;
 
     // ═══ Delete campaign ═══
     const handleDelete = async (campaignId: string) => {
@@ -515,6 +543,16 @@ export default function MarketingPage() {
                                                     <h3 style={{ margin: "0 0 4px", fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>
                                                         {camp.subject_de || camp.source_title}
                                                     </h3>
+                                                    {camp.status === "failed" && (camp.generation_log as Record<string, unknown>)?.error != null && (
+                                                        <p style={{ margin: "0 0 4px", fontSize: "0.78rem", color: "#991b1b" }}>
+                                                            ⚠️ {String((camp.generation_log as Record<string, unknown>).error)}
+                                                        </p>
+                                                    )}
+                                                    {isStuck(camp) && (
+                                                        <p style={{ margin: "0 0 4px", fontSize: "0.78rem", color: "#92400e" }}>
+                                                            ⚠️ Generation never started — use Retry
+                                                        </p>
+                                                    )}
                                                     <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
                                                         📦 {product?.name || camp.recommended_product_slug} · 🏷️ {camp.coupon_code} ({camp.coupon_discount}%)
                                                         {camp.sent_count > 0 && ` · ✉️ ${camp.sent_count} sent`}
@@ -532,7 +570,16 @@ export default function MarketingPage() {
                                                 {camp.image_url && (
                                                     <img src={camp.image_url} alt="" style={{ width: 64, height: 64, borderRadius: "8px", objectFit: "cover", marginLeft: "1rem" }} />
                                                 )}
-                                                {(camp.status === "draft" || camp.status === "generating" || camp.status === "approved") && (
+                                                {(camp.status === "failed" || isStuck(camp)) && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRetry(camp.id); }}
+                                                        disabled={generatingId !== null}
+                                                        title={isStuck(camp) ? "Generation never started — restart it" : String((camp.generation_log as Record<string, unknown>)?.error || "Retry generation")}
+                                                        style={{ ...btnPrimary, padding: "6px 10px", fontSize: "0.75rem", marginLeft: "0.5rem", opacity: generatingId !== null ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                                                        🔁 Retry
+                                                    </button>
+                                                )}
+                                                {(camp.status === "draft" || camp.status === "generating" || camp.status === "approved" || camp.status === "failed") && (
                                                     <button onClick={(e) => { e.stopPropagation(); handleDelete(camp.id); }}
                                                         style={{ ...btnDanger, padding: "6px 10px", fontSize: "0.75rem", marginLeft: "0.5rem" }}>
                                                         🗑️

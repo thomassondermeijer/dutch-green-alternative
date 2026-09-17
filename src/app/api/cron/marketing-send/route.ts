@@ -39,7 +39,11 @@ export async function GET(req: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "http://localhost:3000";
         const res = await fetch(`${baseUrl}/api/admin/marketing/send`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                // The send route is admin-only; the cron authenticates with its secret.
+                ...(cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {}),
+            },
             body: JSON.stringify({ campaignId: campaign.id, maxRecipients: 50 }),
         });
 
