@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Headers, header, hasHeader, emailDomain } from "./headers";
 import classifierPrompt from "./classifier-prompt.json";
-import { chatJson, isConfigured, MODELS } from "@/lib/ai/openrouter";
+import { chatJson, isConfigured } from "@/lib/ai/openrouter";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -234,7 +234,6 @@ export async function classifyWithLlm(
     const body = (mail.bodyText || mail.bodyHtml.replace(/<[^>]+>/g, " ")).slice(0, 4000);
 
     const parsed = await chatJson<{ category?: string; confidence?: unknown; reason?: unknown }>({
-        model: MODELS.CLASSIFY,
         system: CLASSIFIER_PROMPT,
         prompt: `FROM: ${mail.fromName ? `${mail.fromName} ` : ""}<${mail.fromEmail}>
 SUBJECT: ${mail.subject}

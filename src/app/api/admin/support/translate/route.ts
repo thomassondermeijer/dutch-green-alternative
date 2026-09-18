@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth/admin";
-import { chat, isConfigured, MODELS } from "@/lib/ai/openrouter";
+import { chat, isConfigured } from "@/lib/ai/openrouter";
 
 const LANGUAGES: Record<string, string> = {
     en: "English",
@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
         const target = LANGUAGES[targetLanguage] || "English";
 
         const result = await chat({
-            model: MODELS.CLASSIFY,
             system: `You are a translator for a Dutch CBD webshop's support desk. Translate the user's text into ${target}. Return only the translation — no preamble, no quotes, no notes. Preserve line breaks, names, order numbers and product names exactly as they appear.`,
             prompt: text.slice(0, 8000),
             temperature: 0.2,

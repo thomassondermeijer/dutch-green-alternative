@@ -27,8 +27,8 @@ const supabaseAdmin = createClient(
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") || "";
 const KIE_AI_API_KEY = Deno.env.get("KIE_AI_API_KEY") || "";
 
-/** Same model as the rest of the app (src/lib/ai/openrouter.ts). */
-const MODEL = "google/gemini-3.7-flash";
+/** Same model as the rest of the app — keep in step with MODEL in src/lib/ai/openrouter.ts. */
+const MODEL = "google/gemini-3.8-flash";
 
 const PRODUCTS = [
   { slug: "cbd-raw-5-5", name: "RAW CBD Öl 5,5%", price: 29.95, keywords: ["beginners", "mild", "entry", "low dose", "starter"] },

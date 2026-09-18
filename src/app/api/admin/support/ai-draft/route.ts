@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth/admin";
-import { chat, isConfigured, MODELS } from "@/lib/ai/openrouter";
+import { chat, isConfigured } from "@/lib/ai/openrouter";
 
 const LANGUAGES: Record<string, string> = {
     de: "German",
@@ -74,7 +74,6 @@ ${adminContext}
             : "";
 
         const result = await chat({
-            model: MODELS.WRITE,
             system,
             prompt: `${orderContext}${instructions}CONVERSATION SO FAR
 ${conversation}

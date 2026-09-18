@@ -18,7 +18,8 @@ import { dirname, join } from "path";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const CLASSIFY_MODEL = "google/gemini-3.7-flash";
+// Keep in step with MODEL in src/lib/ai/openrouter.ts.
+const CLASSIFY_MODEL = "google/gemini-3.8-flash";
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
     console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");

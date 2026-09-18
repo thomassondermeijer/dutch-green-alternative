@@ -9,15 +9,14 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const API_KEY = process.env.OPENROUTER_API_KEY || "";
 
 /**
- * Models. Both roles run Gemini 3.7 Flash; the two names are kept so a job can
- * be moved to a different model without touching its call site.
+ * The model every AI call in the app uses.
+ *
+ * One constant on purpose: spam triage, translation and reply drafts all run
+ * the same model, so there is a single place to change it. The Edge Function
+ * `marketing-generate` keeps its own copy of this string because Deno cannot
+ * import from here — change both together.
  */
-export const MODELS = {
-    /** High-volume, low-stakes: spam triage, translation. */
-    CLASSIFY: "google/gemini-3.7-flash",
-    /** Low-volume, customer-facing: support reply drafts. */
-    WRITE: "google/gemini-3.7-flash",
-} as const;
+export const MODEL = "google/gemini-3.8-flash";
 
 export type ChatOptions = {
     /** System prompt — the role and rules. */
@@ -59,7 +58,7 @@ export async function chat(opts: ChatOptions): Promise<ChatResult> {
     const {
         system,
         prompt,
-        model = MODELS.CLASSIFY,
+        model = MODEL,
         maxTokens = 1024,
         temperature = 0.2,
         json = false,
