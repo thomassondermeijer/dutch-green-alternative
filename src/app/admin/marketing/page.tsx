@@ -132,6 +132,37 @@ export default function MarketingPage() {
 
     useEffect(() => { loadArticles(); loadCampaigns(); loadStats(); loadProducts(); }, [loadArticles, loadCampaigns, loadStats, loadProducts]);
 
+    // ═══ Keep the list live ═══
+    // Only the Generate button watched its own campaign, so a Retry — and any
+    // generation running in another tab, or already in flight at page load —
+    // sat on "generating" until the page was reloaded by hand, long after the
+    // campaign had finished.
+    const anyGenerating = campaigns.some((c) => c.status === "generating");
+
+    useEffect(() => {
+        const supabase = createClient();
+        const channel = supabase
+            .channel("campaign-list")
+            .on("postgres_changes", {
+                event: "UPDATE", schema: "public", table: "marketing_campaigns",
+            }, (payload) => {
+                const updated = payload.new as Campaign;
+                setCampaigns((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
+                setSelectedCampaign((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, []);
+
+    // Realtime can drop a message, and a dropped one here means a card that
+    // never stops spinning. Poll as a backstop, but only while it matters.
+    useEffect(() => {
+        if (!anyGenerating) return;
+        const id = setInterval(loadCampaigns, 15000);
+        return () => clearInterval(id);
+    }, [anyGenerating, loadCampaigns]);
+
     const showMsg = (type: "success" | "error", text: string) => {
         setMessage({ type, text });
         setTimeout(() => setMessage(null), 5000);
@@ -264,9 +295,19 @@ export default function MarketingPage() {
         setGenProgress("");
     };
 
-    /** A campaign that has said "generating" for over ten minutes is not generating. */
-    const isStuck = (camp: Campaign) =>
-        camp.status === "generating" && Date.now() - new Date(camp.created_at).getTime() > 10 * 60 * 1000;
+    /**
+     * A campaign that has said "generating" for over ten minutes is not generating.
+     *
+     * Measured from when generation last started, not from when the campaign was
+     * created: retrying a campaign from last month would otherwise be called
+     * stuck the moment it began.
+     */
+    const isStuck = (camp: Campaign) => {
+        if (camp.status !== "generating") return false;
+        const log = (camp.generation_log || {}) as Record<string, string>;
+        const startedAt = log.started_at || camp.created_at;
+        return Date.now() - new Date(startedAt).getTime() > 10 * 60 * 1000;
+    };
 
     // ═══ Delete campaign ═══
     const handleDelete = async (campaignId: string) => {
