@@ -30,13 +30,64 @@ const KIE_AI_API_KEY = Deno.env.get("KIE_AI_API_KEY") || "";
 /** Same model as the rest of the app — keep in step with MODEL in src/lib/ai/openrouter.ts. */
 const MODEL = "google/gemini-3.8-flash";
 
-const PRODUCTS = [
-  { slug: "cbd-raw-5-5", name: "RAW CBD Öl 5,5%", price: 29.95, keywords: ["beginners", "mild", "entry", "low dose", "starter"] },
-  { slug: "cbd-raw-11", name: "RAW CBD Öl 11%", price: 41.95, keywords: ["regular", "medium", "daily", "standard"] },
-  { slug: "cbd-gold-35", name: "CBD Gold 35%", price: 84.95, keywords: ["strong", "high dose", "concentrated", "premium"] },
-  { slug: "golden-spectrum-35", name: "Golden Spectrum 35% (CBD+CBG+CBN)", price: 89.95, keywords: ["full spectrum", "entourage", "cancer", "multiple cannabinoids", "top tier"] },
-  { slug: "cbg-raw-12", name: "CBG RAW 12%", price: 49.95, keywords: ["cbg", "inflammation", "gut", "brain", "neuroprotection"] },
+type Product = { slug: string; name: string; price: number };
+
+/**
+ * The catalogue comes from the database. A hardcoded list here knew only 5 of
+ * the 8 active products, so Mind Comfort, Good Night and Body Harmony could
+ * never be recommended.
+ */
+async function loadProducts(): Promise<Product[]> {
+  const { data } = await supabaseAdmin
+    .from("products")
+    .select("slug, price, translations")
+    .eq("is_active", true)
+    .order("sort_order", { nullsFirst: false });
+
+  return (data || []).map((row: { slug: string; price: string | number; translations: Record<string, { name?: string }> | null }) => ({
+    slug: row.slug,
+    name: row.translations?.de?.name || row.slug,
+    price: Number(row.price),
+  }));
+}
+
+// ── Link policy ────────────────────────────────────────────────────────────
+// Keep in step with ALLOWED_LINK_DOMAINS in src/lib/marketing/links.ts.
+// Newsletter platforms (beehiiv, substack) are deliberately absent: that is
+// where the source article lives, and linking it sends readers to a rival.
+const ALLOWED_LINK_DOMAINS = [
+  "dutchgreenalternative.nl",
+  "nih.gov", "doi.org", "clinicaltrials.gov", "who.int", "cochranelibrary.com",
+  "nature.com", "science.org", "sciencedirect.com", "elsevier.com", "thelancet.com",
+  "bmj.com", "jamanetwork.com", "nejm.org", "cell.com", "pnas.org",
+  "springer.com", "springeropen.com", "biomedcentral.com", "wiley.com",
+  "tandfonline.com", "mdpi.com", "frontiersin.org", "plos.org", "oup.com",
+  "sagepub.com", "ahajournals.org", "karger.com", "acs.org", "rsc.org",
 ];
+
+function isAllowedLinkTarget(href: string): boolean {
+  const value = href.trim();
+  if (!value) return false;
+  if (/^\{[A-Z_]+\}$/.test(value)) return true;      // {PRODUCT_URL} etc.
+  if (/^(mailto:|tel:|#)/i.test(value)) return true;
+  let host: string;
+  try { host = new URL(value).hostname.toLowerCase(); } catch { return false; }
+  return ALLOWED_LINK_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
+/** Unwrap links to anywhere not allowed, keeping the words so prose still reads. */
+function sanitizeCampaignLinks(html: string): { html: string; removed: string[] } {
+  if (!html) return { html: "", removed: [] };
+  const removed: string[] = [];
+  const cleaned = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (whole, attrs: string, inner: string) => {
+    const m = /href\s*=\s*["']([^"']*)["']/i.exec(attrs);
+    const href = m ? m[1] : "";
+    if (href && isAllowedLinkTarget(href)) return whole;
+    removed.push(href || "(no href)");
+    return inner;
+  });
+  return { html: cleaned, removed };
+}
 
 type SeasonalEvent = { date: Date; code: string; discount: number; reason: string; reason_de: string; reason_nl: string };
 
@@ -218,7 +269,15 @@ async function generate(campaignId: string, articleId: string, log: Record<strin
     log.step3_start = new Date().toISOString();
     await updateLog(campaignId, log);
 
-    const productList = PRODUCTS.map(p => `- ${p.slug}: ${p.name} (€${p.price}) — good for: ${p.keywords.join(", ")}`).join("\n");
+    const products = await loadProducts();
+    if (products.length === 0) {
+      log.step3_error = "No active products found in the catalogue";
+      await updateLog(campaignId, log);
+      throw new Error(log.step3_error as string);
+    }
+    log.step3_product_count = products.length;
+
+    const productList = products.map(p => `- ${p.slug}: ${p.name} (€${p.price.toFixed(2)})`).join("\n");
 
     const cancerInstruction = article.has_cancer_content
       ? `This article contains CANCER-RELATED research. You MUST:\n- Make subject option 1 about the cancer study specifically\n- Make subject option 2 about a different 50+ health topic from the article\n- Make subject option 3 a curiosity/question angle about the cancer findings\n- In the body, the FIRST <h2> section should cover the cancer study with strong authority citations\n- The SECOND <h2> should cover the other health topic for a 50+ audience`
@@ -234,7 +293,7 @@ TASK: Rewrite the following medical cannabis research newsletter into a DGA mark
 SOURCE ARTICLE: ${article.title}
 ${truncatedContent}
 
-PRODUCTS (RAW CBD & CBG line ONLY):
+OUR PRODUCTS — recommend one of these, by slug:
 ${productList}
 
 SEASONAL CONTEXT: The seasonal event and its LOCALIZED names are:
@@ -247,10 +306,25 @@ ${cancerInstruction}
 
 IMPORTANT RULES:
 1. Each study gets its own <h2> heading + 3-4 sentences explaining findings
-2. CITE SOURCES: include journal/institution with link, e.g. <a href="URL">Published in Journal of Oncology</a>
+2. LINKS — strict. Anything breaking these rules is stripped automatically before the draft is saved:
+   a) NEVER link to the source article above, to the newsletter it came from, or to any newsletter
+      platform (beehiiv, substack, mailchimp, ghost), and never to another CBD shop. Those send our
+      readers to a competitor's list.
+   b) You MAY cite research by linking to pubmed.ncbi.nlm.nih.gov, doi.org, clinicaltrials.gov,
+      who.int, or a journal/publisher (nature.com, science.org, thelancet.com, bmj.com, nejm.org,
+      jamanetwork.com, sciencedirect.com, springer.com, wiley.com, mdpi.com, frontiersin.org,
+      plos.org, biomedcentral.com and the like).
+   c) Only use a URL that literally appears in the SOURCE ARTICLE above AND is on one of those
+      domains. Never invent, guess, shorten or reconstruct a URL — a fabricated DOI is worse than
+      no link. With no allowed URL to hand, cite in plain text and no anchor at all:
+      "published in the Journal of Oncology".
+   d) Link the recommended product exactly once, as <a href="{PRODUCT_URL}">…</a>. Write the
+      placeholder literally — it is replaced with the real product page, discount applied, before
+      sending. NEVER write a dutchgreenalternative URL yourself.
+   e) You may link the whole range at most once, as <a href="{SHOP_URL}">…</a>.
 3. DGA voice: professional but warm, science-backed, European
 4. NO medical claims — use "research suggests", "studies indicate", "may support"
-5. Recommend ONE product from the RAW line that best matches the article topic
+5. Recommend ONE product from the list above that best matches the article topic
 6. The discount applies to ALL products in the store, not just the recommended product. When mentioning the discount, ALWAYS say it applies to all products / the entire range. Examples:
    - DE: "Anlässlich ${coupon.reason_de} erhalten Sie {DISCOUNT}% Rabatt auf unser gesamtes Sortiment"
    - NL: "Ter ere van ${coupon.reason_nl} bieden we {DISCOUNT}% korting op al onze producten"
@@ -358,6 +432,26 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
 
     log.step = "4_done";
     log.ai_recommended_product = aiResult.recommended_product;
+    await updateLog(campaignId, log);
+
+    // The prompt asks for our links only; this enforces it. The model cites what
+    // it reads, and what it reads is a rival's newsletter.
+    const linkReport: Record<string, string[]> = {};
+    for (const key of ["body_de", "body_nl", "body_en"] as const) {
+      const { html, removed } = sanitizeCampaignLinks(aiResult[key]);
+      aiResult[key] = html;
+      if (removed.length > 0) linkReport[key] = removed;
+    }
+    if (Object.keys(linkReport).length > 0) {
+      log.step4_links_removed = linkReport;
+      console.warn(`[marketing-generate] stripped disallowed links: ${JSON.stringify(linkReport)}`);
+    }
+
+    // A slug the model invented would silently 404 on every CTA.
+    if (!products.some((p) => p.slug === aiResult.recommended_product)) {
+      log.step4_product_fallback = `${aiResult.recommended_product} is not in the catalogue`;
+      aiResult.recommended_product = products[0].slug;
+    }
     await updateLog(campaignId, log);
 
     const defaultSubject = aiResult.subject_options?.[0] || {};

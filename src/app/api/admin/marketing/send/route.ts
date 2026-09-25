@@ -4,22 +4,13 @@ import { isAdmin } from "@/lib/auth/admin";
 import { sendBatchEmails, type BatchEmailItem } from "@/lib/resend/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
 import { unsubscribeUrl, unsubscribeHeaders } from "@/lib/marketing/unsubscribe-token";
+import { renderCampaignBody, sanitizeCampaignLinks } from "@/lib/marketing/links";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PRODUCTS: Record<string, { name: string; price: number }> = {
-    "cbd-raw-5-5": { name: "RAW CBD Öl 5,5%", price: 29.95 },
-    "cbd-raw-11": { name: "RAW CBD Öl 11%", price: 41.95 },
-    "cbd-gold-35": { name: "CBD Gold 35%", price: 84.95 },
-    "golden-spectrum-35": { name: "Golden Spectrum 35% (CBD+CBG+CBN)", price: 89.95 },
-    "cbg-raw-12": { name: "CBG RAW 12%", price: 49.95 },
-    "mind-comfort-8": { name: "Mind Comfort", price: 44.95 },
-    "good-night-8": { name: "Good Night", price: 44.95 },
-    "body-harmony-8": { name: "Body Harmony", price: 44.95 },
-};
 
 /**
  * Convert Supabase storage URLs to domain-proxied URLs for better email deliverability.
@@ -167,7 +158,22 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Campaign must be approved first" }, { status: 400 });
         }
 
-        const product = PRODUCTS[campaign.recommended_product_slug] || { name: "CBD Oil", price: 29.95 };
+        // Read the product from the database rather than a hardcoded table:
+        // the old table had Mind Comfort, Good Night and Body Harmony at €44.95
+        // where the catalogue says €34.95, and a price error in a customer
+        // email is not something a constant should be able to cause.
+        const { data: productRow } = await supabaseAdmin
+            .from("products")
+            .select("slug, price, translations")
+            .eq("slug", campaign.recommended_product_slug)
+            .maybeSingle();
+
+        const productTranslations = (productRow?.translations || {}) as Record<string, { name?: string }>;
+        const product = {
+            price: Number(productRow?.price ?? 29.95),
+            nameFor: (loc: string) =>
+                productTranslations[loc]?.name || productTranslations.de?.name || "CBD Oil",
+        };
 
         // Fetch coupon expiry for the discount banner
         let couponValidUntil: string | undefined;
@@ -223,13 +229,27 @@ export async function POST(req: NextRequest) {
             let bodyHtml = (campaign[`body_html_${locale}`] as string) || campaign.body_html_de;
 
             const firstName = recipient.first_name || NAME_FALLBACK[locale] || NAME_FALLBACK.de;
-            bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, firstName);
-            bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(campaign.coupon_discount));
+
+            // Last gate: strip links to anywhere not on the allowlist. The
+            // generator already does this, but a draft can be hand-edited
+            // between generation and send.
+            const safe = sanitizeCampaignLinks(bodyHtml);
+            if (safe.removed.length > 0) {
+                console.warn(`[Marketing] Removed ${safe.removed.length} disallowed link(s) before sending ${campaignId}: ${safe.removed.join(", ")}`);
+            }
+
+            bodyHtml = renderCampaignBody(safe.html, {
+                firstName,
+                discount: campaign.coupon_discount,
+                productSlug: campaign.recommended_product_slug,
+                locale,
+                coupon: campaign.coupon_code,
+            });
 
             const html = buildMarketingNewsletterEmail({
                 subject, bodyHtml,
                 imageUrl: proxyImageUrl(campaign.image_url),
-                productName: product.name,
+                productName: product.nameFor(locale),
                 productSlug: campaign.recommended_product_slug,
                 productPrice: product.price,
                 couponCode: campaign.coupon_code,

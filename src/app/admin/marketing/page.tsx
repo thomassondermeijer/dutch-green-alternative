@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { buildMarketingNewsletterEmail } from "@/lib/resend/templates/marketing-newsletter";
+import { renderCampaignBody, sanitizeCampaignLinks } from "@/lib/marketing/links";
 import styles from "../admin.module.css";
 
 type Tab = "library" | "campaigns" | "preview" | "stats";
@@ -47,16 +48,11 @@ type AudienceFilter = {
     never_purchased?: boolean;
 };
 
-const PRODUCTS: Record<string, { name: string; price: number }> = {
-    "cbd-raw-5-5": { name: "RAW CBD Öl 5,5%", price: 29.95 },
-    "cbd-raw-11": { name: "RAW CBD Öl 11%", price: 41.95 },
-    "cbd-gold-35": { name: "CBD Gold 35%", price: 84.95 },
-    "golden-spectrum-35": { name: "Golden Spectrum 35% (CBD+CBG+CBN)", price: 89.95 },
-    "cbg-raw-12": { name: "CBG RAW 12%", price: 49.95 },
-    "mind-comfort-8": { name: "Mind Comfort", price: 44.95 },
-    "good-night-8": { name: "Good Night", price: 44.95 },
-    "body-harmony-8": { name: "Body Harmony", price: 44.95 },
-};
+/**
+ * Product names and prices come from the catalogue, not a constant. Three
+ * hardcoded copies of this table had drifted €10 above the real prices.
+ */
+type ProductInfo = { name: string; price: number };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     draft: { bg: "#f1f5f9", text: "#475569" },
@@ -77,6 +73,7 @@ export default function MarketingPage() {
     const [tab, setTab] = useState<Tab>("library");
     const [articles, setArticles] = useState<Article[]>([]);
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+    const [products, setProducts] = useState<Record<string, ProductInfo>>({});
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [locale, setLocale] = useState("de");
     const [showSource, setShowSource] = useState(false);
@@ -105,6 +102,20 @@ export default function MarketingPage() {
         setArticles((data || []) as Article[]);
     }, []);
 
+    const loadProducts = useCallback(async () => {
+        const supabase = createClient();
+        const { data } = await supabase.from("products").select("slug, price, translations").eq("is_active", true);
+        const map: Record<string, ProductInfo> = {};
+        for (const row of data || []) {
+            const t = (row.translations || {}) as Record<string, { name?: string }>;
+            map[row.slug] = {
+                name: t[locale]?.name || t.de?.name || row.slug,
+                price: Number(row.price),
+            };
+        }
+        setProducts(map);
+    }, [locale]);
+
     const loadCampaigns = useCallback(async () => {
         const supabase = createClient();
         const { data } = await supabase.from("marketing_campaigns").select("*").order("created_at", { ascending: false });
@@ -119,7 +130,7 @@ export default function MarketingPage() {
         setTotalSent(sentCount || 0);
     }, []);
 
-    useEffect(() => { loadArticles(); loadCampaigns(); loadStats(); }, [loadArticles, loadCampaigns, loadStats]);
+    useEffect(() => { loadArticles(); loadCampaigns(); loadStats(); loadProducts(); }, [loadArticles, loadCampaigns, loadStats, loadProducts]);
 
     const showMsg = (type: "success" | "error", text: string) => {
         setMessage({ type, text });
@@ -361,12 +372,20 @@ export default function MarketingPage() {
     const getPreviewHtml = (camp: Campaign) => {
         const subjectKey = `subject_${locale}` as keyof Campaign;
         const bodyKey = `body_html_${locale}` as keyof Campaign;
-        const product = PRODUCTS[camp.recommended_product_slug] || { name: "CBD Oil", price: 29.95 };
+        const product = products[camp.recommended_product_slug] || { name: camp.recommended_product_slug, price: 0 };
 
-        // Replace placeholder with "Max" for preview
-        let bodyHtml = ((camp[bodyKey] as string) || camp.body_html_de || "");
-        bodyHtml = bodyHtml.replace(/\{FIRST_NAME\}/g, "Max");
-        bodyHtml = bodyHtml.replace(/\{DISCOUNT\}/g, String(camp.coupon_discount));
+        // Preview what will actually be sent: same sanitising and the same
+        // placeholder substitution the send route applies.
+        const bodyHtml = renderCampaignBody(
+            sanitizeCampaignLinks((camp[bodyKey] as string) || camp.body_html_de || "").html,
+            {
+                firstName: "Max",
+                discount: camp.coupon_discount,
+                productSlug: camp.recommended_product_slug,
+                locale,
+                coupon: camp.coupon_code,
+            }
+        );
 
         return buildMarketingNewsletterEmail({
             subject: (camp[subjectKey] as string) || camp.subject_de,
@@ -516,7 +535,7 @@ export default function MarketingPage() {
                             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                                 {campaigns.map(camp => {
                                     const statusColor = STATUS_COLORS[camp.status] || STATUS_COLORS.draft;
-                                    const product = PRODUCTS[camp.recommended_product_slug];
+                                    const product = products[camp.recommended_product_slug];
                                     return (
                                         <div key={camp.id}
                                             onClick={() => { setSelectedCampaign(camp); setSavedCoupon({ code: camp.coupon_code, discount: camp.coupon_discount }); setTab("preview"); }}
@@ -674,7 +693,7 @@ export default function MarketingPage() {
                                 </div>
                                 <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 120px" }}>
                                     <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "2px" }}>Product</div>
-                                    <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1e293b" }}>{PRODUCTS[selectedCampaign.recommended_product_slug]?.name || "—"}</div>
+                                    <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1e293b" }}>{products[selectedCampaign.recommended_product_slug]?.name || selectedCampaign.recommended_product_slug || "—"}</div>
                                 </div>
                                 <div style={{ background: "white", borderRadius: "8px", padding: "10px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.04)", flex: "1 1 200px" }}>
                                     <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Coupon Code</div>
@@ -899,8 +918,13 @@ export default function MarketingPage() {
                                         dangerouslySetInnerHTML={{ __html: (() => {
                                             const bodyKey = `body_html_${locale}` as keyof Campaign;
                                             let html = ((selectedCampaign[bodyKey] as string) || selectedCampaign.body_html_de || "");
-                                            html = html.replace(/\{FIRST_NAME\}/g, "Max");
-                                            html = html.replace(/\{DISCOUNT\}/g, String(selectedCampaign.coupon_discount));
+                                            html = renderCampaignBody(sanitizeCampaignLinks(html).html, {
+                                                firstName: "Max",
+                                                discount: selectedCampaign.coupon_discount,
+                                                productSlug: selectedCampaign.recommended_product_slug,
+                                                locale,
+                                                coupon: selectedCampaign.coupon_code,
+                                            });
                                             return html;
                                         })() }}
                                         style={{

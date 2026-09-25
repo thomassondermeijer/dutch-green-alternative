@@ -1,3 +1,5 @@
+import { productUrl, shopUrl } from "@/lib/marketing/links";
+
 type MarketingEmailData = {
   subject: string;
   bodyHtml: string;
@@ -46,7 +48,11 @@ const labels: Record<string, Record<string, string>> = {
 
 export function buildMarketingNewsletterEmail(data: MarketingEmailData): string {
   const t = labels[data.locale] || labels.de;
-  const shopUrl = `https://dutchgreenalternative.nl/${data.locale}?coupon=${data.couponCode}`;
+  // The banner offers a discount on the whole range, so its button goes to the
+  // shop — but to /shop, not the homepage it used to point at. The recommended
+  // product gets its own link on the tip line below.
+  const ctaUrl = shopUrl(data.locale, data.couponCode);
+  const tipUrl = productUrl(data.productSlug, data.locale, data.couponCode);
   // Signed, per-recipient link. `unsubscribeUrl` is missing only in previews;
   // the old bare /unsubscribe path never existed as a route and always 404'd.
   const unsubUrl = data.unsubscribeUrl || `https://dutchgreenalternative.nl/${data.locale}/unsubscribe`;
@@ -118,18 +124,18 @@ export function buildMarketingNewsletterEmail(data: MarketingEmailData): string 
                     ${discountHeadline}
                   </p>
                   <!--[if mso]>
-                  <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${shopUrl}" style="height:46px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="#2d5a3d" fillcolor="#2d5a3d">
+                  <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${ctaUrl}" style="height:46px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="#2d5a3d" fillcolor="#2d5a3d">
                     <w:anchorlock/>
                     <center style="color:#ffffff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;">${t.shopNow} →</center>
                   </v:roundrect>
                   <![endif]-->
                   <!--[if !mso]><!-->
-                  <a href="${shopUrl}" style="display: inline-block; background: linear-gradient(135deg, #2d5a3d, #4a7c59); background-color: #2d5a3d; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 15px; font-family: 'Outfit', sans-serif; mso-hide: all;">
+                  <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #2d5a3d, #4a7c59); background-color: #2d5a3d; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 15px; font-family: 'Outfit', sans-serif; mso-hide: all;">
                     ${t.shopNow} →
                   </a>
                   <!--<![endif]-->${validUntilHtml}
                   <p style="margin: 16px 0 0; font-size: 11px; color: #94a3b8;">
-                    💡 ${t.ourTip}: ${data.productName} — €${data.productPrice.toFixed(2)}
+                    💡 ${t.ourTip}: <a href="${tipUrl}" style="color: #2d5a3d; font-weight: 600; text-decoration: underline;">${data.productName}</a> — €${data.productPrice.toFixed(2)}
                   </p>
                 </td>
               </tr>
