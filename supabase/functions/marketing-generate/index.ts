@@ -285,6 +285,22 @@ async function generate(campaignId: string, articleId: string, log: Record<strin
 
     const truncatedContent = (article.content || "").slice(0, 8000);
 
+    // The studies the source issue actually links to, resolved against PubMed
+    // by the scraper. Handed over separately because the prose above is
+    // truncated and the links sit at the end of it.
+    type SourceLink = { url: string; title?: string; journal?: string; year?: string };
+    const sourceLinks: SourceLink[] = Array.isArray(article.source_links) ? article.source_links : [];
+    log.citable_source_count = sourceLinks.length;
+
+    const citableBlock = sourceLinks.length > 0
+      ? `CITABLE SOURCES — the studies this issue is based on. These are the ONLY research URLs you may link:
+${sourceLinks.map((l) => `- ${l.url}
+    ${l.title || "(title unavailable)"}${l.journal ? ` — ${l.journal}` : ""}${l.year ? `, ${l.year}` : ""}`).join("\n")}
+
+Match each link to the section it belongs to by its TITLE, not by its position in this list. If no title
+matches a section, that section gets no link.`
+      : `CITABLE SOURCES: none were found in this issue. Cite journals in plain text only — do NOT link any research.`;
+
     const prompt = `You are the content writer for Dutch Green Alternative (DGA), a premium European CBD oil brand.
 Your audience is 50+ year old health-conscious Europeans interested in natural wellness and CBD research.
 
@@ -302,6 +318,8 @@ SEASONAL CONTEXT: The seasonal event and its LOCALIZED names are:
 - Dutch: "${coupon.reason_nl}"
 The discount is automatically applied when clicking the product link.
 
+${citableBlock}
+
 ${cancerInstruction}
 
 IMPORTANT RULES:
@@ -310,13 +328,12 @@ IMPORTANT RULES:
    a) NEVER link to the source article above, to the newsletter it came from, or to any newsletter
       platform (beehiiv, substack, mailchimp, ghost), and never to another CBD shop. Those send our
       readers to a competitor's list.
-   b) You MAY cite research by linking to pubmed.ncbi.nlm.nih.gov, doi.org, clinicaltrials.gov,
-      who.int, or a journal/publisher (nature.com, science.org, thelancet.com, bmj.com, nejm.org,
-      jamanetwork.com, sciencedirect.com, springer.com, wiley.com, mdpi.com, frontiersin.org,
-      plos.org, biomedcentral.com and the like).
-   c) Only use a URL that literally appears in the SOURCE ARTICLE above AND is on one of those
-      domains. Never invent, guess, shorten or reconstruct a URL — a fabricated DOI is worse than
-      no link. With no allowed URL to hand, cite in plain text and no anchor at all:
+   b) You MAY cite research, but ONLY by copying a URL verbatim from CITABLE SOURCES above.
+      Link it on the study's name or journal, e.g.
+      <a href="https://pubmed.ncbi.nlm.nih.gov/16908594/">published in Molecular Cancer Research</a>.
+   c) NEVER invent, guess, shorten or reconstruct a URL, and never write a PubMed search link — a
+      fabricated citation is worse than none. If CITABLE SOURCES is empty, or no listed title
+      matches the section you are writing, cite in plain text with no anchor at all:
       "published in the Journal of Oncology".
    d) Link the recommended product exactly once, as <a href="{PRODUCT_URL}">…</a>. Write the
       placeholder literally — it is replaced with the real product page, discount applied, before
